@@ -1,22 +1,25 @@
-import type { Metadata } from "next";
-import MarketsOverview from "@/components/MarketsOverview";
+import type { Metadata } from 'next';
+import MarketsOverview from '@/components/MarketsOverview';
 
-// Live data on every request — never served from the build-time cache.
+// Always fetch live market data on each request.
 export const dynamic = 'force-dynamic';
 
 export const metadata: Metadata = {
-  title: "Markets — Quorum",
+  title: 'Markets — Quorum',
   description:
-    "Live TVL, DEX volume, and Stock Token activity across the Robinhood Chain ecosystem, pulled from real market and on-chain data.",
+    'Live TVL, DEX volume, and Stock Token activity across the Robinhood Chain ecosystem, pulled from real market and on-chain data.',
 };
 
 export default function MarketsPage() {
   return (
     <main>
+      {/* Financial disclaimer and site independence notice */}
       <div className="disclaimer-strip">
-        Not financial advice. Quorum is independent and not affiliated with Robinhood Markets,
-        Inc.
+        Not financial advice. Quorum is independent and not affiliated with
+        Robinhood Markets, Inc.
       </div>
+
+      {/* Market statistics and latest market news */}
       <MarketsOverview />
     </main>
   );

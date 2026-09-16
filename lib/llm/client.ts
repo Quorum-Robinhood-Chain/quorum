@@ -1,14 +1,3 @@
-/**
- * Xiaomi MiMo client (OpenAI-compatible chat completions).
- * Docs: https://mimo.mi.com/docs/en-US/api/chat/openai-api
- *
- * No SDK needed — MiMo speaks the standard OpenAI shape, so a plain fetch() is enough.
- *
- * FIXED: the API key must be sent as `Authorization: Bearer <key>`. The previous build
- * sent it as an `api-key` header, which MiMo ignores — every call came back 401 and
- * looked like "the token isn't being read". Config is also resolved per call (see
- * lib/env.ts) so a key added in Vercel is picked up without a rebuild.
- */
 import { env, requireEnv } from '@/lib/env';
 
 const DEFAULT_BASE_URL = 'https://api.xiaomimimo.com/v1';
@@ -19,6 +8,7 @@ export interface ChatMessage {
   content: string;
 }
 
+// Load MiMo API configuration from the environment.
 function getConfig() {
   return {
     apiKey: requireEnv('MIMO_API_KEY'),
@@ -28,7 +18,7 @@ function getConfig() {
   };
 }
 
-/** Sends a chat completion and returns the assistant's text content. */
+// Send a chat completion request to the configured MiMo model.
 export async function chatCompletion(
   messages: ChatMessage[],
   options: { maxTokens?: number; temperature?: number } = {},
@@ -52,26 +42,47 @@ export async function chatCompletion(
 
   if (!res.ok) {
     const detail = await res.text().catch(() => '');
-    // 401/403 here means the key itself was rejected — say so plainly.
-    const hint = res.status === 401 || res.status === 403 ? ' (check MIMO_API_KEY and MIMO_BASE_URL)' : '';
-    throw new Error(`MiMo request failed ${res.status}${hint}: ${detail.slice(0, 500)}`);
+
+    // 401/403 indicates that the configured API credentials or endpoint may be invalid.
+    const hint =
+      res.status === 401 || res.status === 403
+        ? ' (check MIMO_API_KEY and MIMO_BASE_URL)'
+        : '';
+
+    throw new Error(
+      `MiMo request failed ${res.status}${hint}: ${detail.slice(0, 500)}`,
+    );
   }
 
   const data = await res.json();
   const text = data?.choices?.[0]?.message?.content;
+
   if (typeof text !== 'string' || text.trim().length === 0) {
     throw new Error('MiMo returned no text content');
   }
+
   return text;
 }
 
-/** Lightweight connectivity/credential check used by /api/health. */
-export async function pingMimo(): Promise<{ ok: boolean; model: string; error?: string }> {
+// Check whether the configured MiMo API is reachable and responding.
+export async function pingMimo(): Promise<{
+  ok: boolean;
+  model: string;
+  error?: string;
+}> {
   try {
     const { model } = getConfig();
-    await chatCompletion([{ role: 'user', content: 'ping' }], { maxTokens: 8 });
+
+    await chatCompletion([{ role: 'user', content: 'ping' }], {
+      maxTokens: 8,
+    });
+
     return { ok: true, model };
   } catch (err) {
-    return { ok: false, model: env('MIMO_MODEL', DEFAULT_MODEL), error: (err as Error).message };
+    return {
+      ok: false,
+      model: env('MIMO_MODEL', DEFAULT_MODEL),
+      error: (err as Error).message,
+    };
   }
 }

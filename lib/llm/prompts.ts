@@ -1,7 +1,3 @@
-// System prompt encodes dev-brief.md §6.1 (editorial principles), §16 (voice/tone), and
-// §2 (the facts the model must not contradict). This is the single source of truth for
-// "how Quorum's automated desk writes" — keep it in sync with the brief if either changes.
-
 export const SYSTEM_PROMPT = `You are the automated writing desk for Quorum, a news and market-data
 site covering the Robinhood Chain ecosystem.
 
@@ -54,35 +50,42 @@ Respond with ONLY a JSON object (no markdown fences, no preamble) matching this 
   "category": string     // one of: "Markets" | "Ecosystem" | "Tokens" | "Stock Tokens"
 }`;
 
+// Supported automated article generation templates.
 export type TemplateType =
-  | "trending_dex_tokens"
-  | "new_token_launches"
-  | "ecosystem_roundup"
-  | "stock_token_movers"
-  | "tvl_lending_snapshot"
-  | "weekly_digest";
+  | 'trending_dex_tokens'
+  | 'new_token_launches'
+  | 'ecosystem_roundup'
+  | 'stock_token_movers'
+  | 'tvl_lending_snapshot'
+  | 'weekly_digest';
 
+// Human-readable labels for each generation template.
 export const TEMPLATE_LABELS: Record<TemplateType, string> = {
-  trending_dex_tokens: "Top trending Robinhood Chain DEX tokens by 24h volume",
-  new_token_launches: "New token launches on Robinhood Chain today",
-  ecosystem_roundup: "Robinhood Chain ecosystem roundup",
-  stock_token_movers: "Stock Token movers",
-  tvl_lending_snapshot: "TVL & lending snapshot",
-  weekly_digest: "Weekly digest",
+  trending_dex_tokens: 'Top trending Robinhood Chain DEX tokens by 24h volume',
+  new_token_launches: 'New token launches on Robinhood Chain today',
+  ecosystem_roundup: 'Robinhood Chain ecosystem roundup',
+  stock_token_movers: 'Stock Token movers',
+  tvl_lending_snapshot: 'TVL & lending snapshot',
+  weekly_digest: 'Weekly digest',
 };
 
-/** Template-specific instructions appended to the user message, per §6.2's rotation table. */
+// Writing instructions specific to each article template.
 export const TEMPLATE_INSTRUCTIONS: Record<TemplateType, string> = {
   trending_dex_tokens:
     "Write a 'trending tokens' story: which tokens led 24h DEX volume and by how much, using only the VERIFIED DATA token list. Call out the split between Stock Tokens/DeFi tokens and memecoins if both are present, without editorializing that memecoins are bad — just label them clearly.",
+
   new_token_launches:
     "Write a 'new token launches' story based on the VERIFIED DATA list of newly deployed pairs/contracts. If early volume data exists for any of them, mention it; if a token has no volume yet, say so plainly rather than guessing.",
+
   ecosystem_roundup:
-    "Write an ecosystem roundup that synthesizes the VERIFIED DATA headline summaries (curated from BeInCrypto/Coinfomania) into original analysis — do not just restate each headline in order. Weave in TVL/protocol numbers from VERIFIED DATA where they add context.",
+    'Write an ecosystem roundup that synthesizes the VERIFIED DATA headline summaries (curated from BeInCrypto/Coinfomania) into original analysis — do not just restate each headline in order. Weave in TVL/protocol numbers from VERIFIED DATA where they add context.',
+
   stock_token_movers:
     "Write a 'Stock Token movers' story using only the VERIFIED DATA Chainlink-fed prices. Group into gainers/losers using the winners-and-losers framing. Remind the reader these are ERC-20 instruments tracking the underlying equity, not the equity itself.",
+
   tvl_lending_snapshot:
     "Write a TVL & lending snapshot focused on Morpho's USDG pool APY/TVL from VERIFIED DATA, plus overall chain TVL for context. Explain in one sentence, plainly, what the APY number means for a USDG depositor.",
+
   weekly_digest:
     "Write a weekly digest that rolls up the VERIFIED DATA into a single narrative arc for the week (what grew, what launched, what's worth watching) — this runs at lower frequency than the hourly templates, so keep it a notch more reflective, still in the same voice.",
 };

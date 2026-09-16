@@ -1,5 +1,4 @@
 // Display formatters shared by every presenter.
-
 export function formatUsd(value: number): string {
   const abs = Math.abs(value);
   if (abs >= 1_000_000_000) return `$${(value / 1_000_000_000).toFixed(1)}B`;
@@ -28,7 +27,7 @@ export function timeAgo(date: Date): string {
   return `${days} day${days === 1 ? '' : 's'} ago`;
 }
 
-/** Rough read time from the dek — there's no dedicated column for it. */
+// Rough read time from the dek — there's no dedicated column for it. */
 export function estimateReadTime(text: string): string {
   const words = text.trim().split(/\s+/).filter(Boolean).length;
   return `${Math.max(1, Math.round(words / 40))} min read`;

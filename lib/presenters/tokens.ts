@@ -20,7 +20,6 @@ interface Snapshot {
   value: number;
 }
 
-/** Latest value per metric for one token scope. */
 function latestFor(snapshots: Snapshot[], symbol: string) {
   const scope = `token:${symbol}`;
   const pick = (metric: string) => snapshots.find((s) => s.scope === scope && s.metric === metric)?.value ?? null;
@@ -28,17 +27,6 @@ function latestFor(snapshots: Snapshot[], symbol: string) {
   return { price: pick('price'), change: pick('price_change_24h'), volume: pick('volume_24h') };
 }
 
-/**
- * Tracked tokens joined to their latest market snapshot. Used by `/api/tokens` and directly
- * by `TokensSection` (no self-fetch over HTTP).
- *
- * Rows are sorted by 24h volume, then price — the Tokens board is a "trending" view (§6.2),
- * not a dump in insert order.
- *
- * Falls back to the sample set when the DB has no tokens, no numbers for any of them, or
- * isn't reachable. A table of tokens where every column reads "—" is worse than clearly
- * labelled sample data, and was what made this page look empty after a fresh seed.
- */
 export async function getTokensPresentation(): Promise<TokensPresentation> {
   try {
     const tokens = await prisma.token.findMany({ where: { isTracked: true } });

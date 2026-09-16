@@ -1,13 +1,14 @@
-import { getArticlesPresentation } from "@/lib/presenters/articles";
+import { Clock, Newspaper, Timer, Bot } from 'lucide-react';
+import { getArticlesPresentation } from '@/lib/presenters/articles';
+import { CategoryThumb, CategoryIcon } from '@/lib/categoryVisual';
 
-// Homepage "Latest news" rail. Wired to the DB via getArticlesPresentation — general recent
-// published articles (no single category), same simplification the original static data/
-// articles.ts set used. Falls back to the static placeholder set if nothing's live yet.
 export default async function NewsList() {
+  // Fetch the 5 latest news articles.
   const { articles: latestNews } = await getArticlesPresentation({ limit: 5 });
 
   return (
     <div className="main-col" id="news">
+      {/* Latest news section header */}
       <div className="section-head">
         <h2>Latest news</h2>
         <a className="view-all" href="/news">
@@ -15,29 +16,61 @@ export default async function NewsList() {
         </a>
       </div>
 
+      {/* Latest news articles */}
       {latestNews.map((article) => (
         <a className="list-story" href={article.href} key={article.id}>
-          <div className="thumb" aria-hidden="true" />
+          <CategoryThumb category={article.category} />
           <div>
-            <span className="cat">{article.category}</span>
+            <span className="cat">
+              <CategoryIcon category={article.category} />
+              {article.category}
+            </span>
             <h3>{article.headline}</h3>
             <p>{article.dek}</p>
             <span className="meta">
-              <span>{article.desk}</span>
-              <span>·</span>
-              <span>{article.timeAgo}</span>
-              <span>·</span>
-              <span>{article.readTime}</span>
-              {!article.automated && article.source.name !== "Quorum" && (
-                <>
-                  <span>·</span>
-                  <span>
-                    via{" "}
-                    <a href={article.source.url} target="_blank" rel="noopener noreferrer">
-                      {article.source.name}
-                    </a>
-                  </span>
-                </>
+              <span className="meta-bit">
+                {article.automated ? (
+                  <Bot
+                    className="meta-icon"
+                    strokeWidth={2.2}
+                    aria-hidden="true"
+                  />
+                ) : (
+                  <Newspaper
+                    className="meta-icon"
+                    strokeWidth={2.2}
+                    aria-hidden="true"
+                  />
+                )}
+                {article.desk}
+              </span>
+              <span className="meta-bit">
+                <Clock
+                  className="meta-icon"
+                  strokeWidth={2.2}
+                  aria-hidden="true"
+                />
+                {article.timeAgo}
+              </span>
+              <span className="meta-bit">
+                <Timer
+                  className="meta-icon"
+                  strokeWidth={2.2}
+                  aria-hidden="true"
+                />
+                {article.readTime}
+              </span>
+              {!article.automated && article.source.name !== 'Quorum' && (
+                <span className="meta-bit">
+                  via{' '}
+                  <a
+                    href={article.source.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    {article.source.name}
+                  </a>
+                </span>
               )}
             </span>
           </div>

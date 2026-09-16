@@ -1,22 +1,10 @@
 import { Contract } from 'ethers';
 import { getProvider, hasRpcConfigured } from './rpc';
-import { envJson } from '@/lib/env';
-
-/**
- * Stock Token pricing (§7.2).
- *
- * STOCK_TOKEN_MAP holds each Stock Token's own ERC-20 contract on Robinhood Chain
- * (e.g. AAPL -> 0xaF3D…). These are plain ERC-20s — they do NOT implement Chainlink's
- * AggregatorV3Interface, so there is no `latestRoundData()` to read.
- *
- * Each token is issued 1:1 against the real underlying equity, so its USD price is the
- * real stock's market price. That quote comes from Stooq (free, no key); the on-chain
- * call is only a sanity check that the configured address is a live contract.
- */
+import { env, envJson } from '@/lib/env';
 
 const ERC20_ABI = ['function decimals() view returns (uint8)'];
 
-/** Project symbols carry an "x" suffix (AAPLx); the market ticker does not. */
+// Convert a stock token symbol to its underlying ticker.
 function toUnderlyingTicker(symbol: string): string {
   return symbol.endsWith('x') ? symbol.slice(0, -1) : symbol;
 }
@@ -24,31 +12,76 @@ function toUnderlyingTicker(symbol: string): string {
 export interface StockTokenPrice {
   symbol: string;
   priceUsd: number | null;
+  changePct24h: number | null;
   updatedAt: Date | null;
   error?: string;
+  warning?: string;
 }
 
-async function fetchUnderlyingPrice(ticker: string): Promise<{ price: number | null; error?: string }> {
+interface FinnhubQuote {
+  c?: number;
+  dp?: number;
+  t?: number;
+}
+
+// Fetch the underlying stock price and 24-hour change from Finnhub.
+async function fetchUnderlyingPrice(ticker: string): Promise<{
+  price: number | null;
+  changePct: number | null;
+  error?: string;
+}> {
+  const apiKey = env('FINNHUB_API_KEY');
+
+  if (!apiKey) {
+    return {
+      price: null,
+      changePct: null,
+      error: 'FINNHUB_API_KEY not configured',
+    };
+  }
+
   try {
-    const url = `https://stooq.com/q/l/?s=${ticker.toLowerCase()}.us&f=sd2t2ohlcv&h&e=csv`;
+    const url = `https://finnhub.io/api/v1/quote?symbol=${encodeURIComponent(ticker)}&token=${apiKey}`;
     const res = await fetch(url, { cache: 'no-store' });
-    if (!res.ok) return { price: null, error: `Stooq HTTP ${res.status}` };
 
-    // Header row then: Symbol,Date,Time,Open,High,Low,Close,Volume
-    const rows = (await res.text()).trim().split('\n');
-    if (rows.length < 2) return { price: null, error: 'Stooq: no data row' };
+    if (!res.ok) {
+      return {
+        price: null,
+        changePct: null,
+        error: `Finnhub HTTP ${res.status}`,
+      };
+    }
 
-    const close = Number(rows[1].split(',')[6]);
-    if (!Number.isFinite(close) || close === 0) return { price: null, error: 'Stooq: no close price' };
-    return { price: close };
+    const data = (await res.json()) as FinnhubQuote;
+
+    // Finnhub may return HTTP 200 with c: 0 for an unknown or unsupported symbol.
+    if (!Number.isFinite(data.c) || data.c === 0) {
+      return {
+        price: null,
+        changePct: null,
+        error: `Finnhub: no quote for "${ticker}"`,
+      };
+    }
+
+    return {
+      price: data.c as number,
+      changePct: Number.isFinite(data.dp) ? (data.dp as number) : null,
+    };
   } catch (err) {
-    return { price: null, error: (err as Error).message };
+    return {
+      price: null,
+      changePct: null,
+      error: (err as Error).message,
+    };
   }
 }
 
-/** Confirms the configured address is a live contract — distinguishes bad config from a bad quote. */
-async function verifyContract(address: string): Promise<{ ok: boolean; error?: string }> {
-  if (!hasRpcConfigured()) return { ok: true }; // no RPC configured: skip the check, don't fail the price
+// Verify that the configured stock token contract is accessible on-chain.
+async function verifyContract(
+  address: string,
+): Promise<{ ok: boolean; error?: string }> {
+  if (!hasRpcConfigured()) return { ok: true };
+
   try {
     await new Contract(address, ERC20_ABI, getProvider()).decimals();
     return { ok: true };
@@ -57,24 +90,53 @@ async function verifyContract(address: string): Promise<{ ok: boolean; error?: s
   }
 }
 
-export async function fetchStockTokenPrice(symbol: string): Promise<StockTokenPrice> {
+// Fetch the price and on-chain status for a single stock token.
+export async function fetchStockTokenPrice(
+  symbol: string,
+): Promise<StockTokenPrice> {
   const ticker = toUnderlyingTicker(symbol);
   const contracts = envJson<string>('STOCK_TOKEN_MAP');
   const address = contracts[ticker] ?? contracts[symbol];
 
   if (!address) {
-    return { symbol, priceUsd: null, updatedAt: null, error: `no contract configured for "${ticker}"` };
+    return {
+      symbol,
+      priceUsd: null,
+      changePct24h: null,
+      updatedAt: null,
+      error: `no contract configured for "${ticker}"`,
+    };
   }
 
   const onchain = await verifyContract(address);
-  if (!onchain.ok) return { symbol, priceUsd: null, updatedAt: null, error: `onchain: ${onchain.error}` };
+  const { price, changePct, error } = await fetchUnderlyingPrice(ticker);
 
-  const { price, error } = await fetchUnderlyingPrice(ticker);
-  if (price == null) return { symbol, priceUsd: null, updatedAt: null, error };
+  if (price == null) {
+    return {
+      symbol,
+      priceUsd: null,
+      changePct24h: null,
+      updatedAt: null,
+      error: onchain.ok
+        ? error
+        : `${error} (also: onchain check failed — ${onchain.error})`,
+    };
+  }
 
-  return { symbol, priceUsd: price, updatedAt: new Date() };
+  return {
+    symbol,
+    priceUsd: price,
+    changePct24h: changePct,
+    updatedAt: new Date(),
+    ...(onchain.ok
+      ? {}
+      : { warning: `onchain check failed — ${onchain.error}` }),
+  };
 }
 
-export async function fetchStockTokenPrices(symbols: string[]): Promise<StockTokenPrice[]> {
+// Fetch stock token prices in parallel.
+export async function fetchStockTokenPrices(
+  symbols: string[],
+): Promise<StockTokenPrice[]> {
   return Promise.all(symbols.map(fetchStockTokenPrice));
 }

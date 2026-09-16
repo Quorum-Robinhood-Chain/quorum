@@ -1,13 +1,14 @@
-import { Big_Shoulders_Display, Public_Sans } from 'next/font/google';
+import { Oswald, Public_Sans } from 'next/font/google';
 
-// Shared by both root layouts (public site + admin) so the two stay in sync.
-export const displayFont = Big_Shoulders_Display({
+// Shared display font used across the public site and admin layout.
+export const displayFont = Oswald({
   subsets: ['latin'],
-  weight: ['600', '700', '800', '900'],
+  weight: ['500', '600', '700'],
   variable: '--font-big-shoulders',
   display: 'swap',
 });
 
+// Shared body font used across the public site and admin layout.
 export const bodyFont = Public_Sans({
   subsets: ['latin'],
   weight: ['400', '500', '600', '700'],
@@ -16,5 +17,5 @@ export const bodyFont = Public_Sans({
   display: 'swap',
 });
 
-/** Class string to put on <html>. */
+/** Combined font variables applied to the root <html> element. */
 export const fontVariables = `${displayFont.variable} ${bodyFont.variable}`;

@@ -1,11 +1,8 @@
 import { env } from '@/lib/env';
 
-// Morpho public GraphQL API — no key required. USDG lending TVL/APY (§7.2, §6.2).
-// Market ids are per-chain, so MORPHO_USDG_MARKET_ID must be set for Robinhood Chain.
-
 const MORPHO_GRAPHQL_URL = 'https://blue-api.morpho.org/graphql';
 
-const QUERY = /* GraphQL */ `
+const QUERY = `
   query MarketState($id: String!) {
     marketByUniqueKey(uniqueKey: $id) {
       state {
@@ -34,19 +31,26 @@ const empty = (error: string): MorphoUsdgSnapshot => ({
   error,
 });
 
+// Fetch the current Morpho USDG market state.
 export async function fetchMorphoUsdgMarket(): Promise<MorphoUsdgSnapshot> {
   const marketId = env('MORPHO_USDG_MARKET_ID');
+
   if (!marketId) return empty('MORPHO_USDG_MARKET_ID not set');
 
   const res = await fetch(MORPHO_GRAPHQL_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ query: QUERY, variables: { id: marketId } }),
+    body: JSON.stringify({
+      query: QUERY,
+      variables: { id: marketId },
+    }),
     cache: 'no-store',
   });
+
   if (!res.ok) return empty(`HTTP ${res.status}`);
 
   const state = (await res.json())?.data?.marketByUniqueKey?.state;
+
   if (!state) return empty('market not found');
 
   return {

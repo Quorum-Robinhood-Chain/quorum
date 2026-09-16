@@ -1,24 +1,45 @@
-import { prisma } from "@/lib/db";
-import { timeAgo, estimateReadTime } from "@/lib/format";
-import { heroArticle, heroSideArticles, latestNews, marketCards } from "@/data/articles";
-import { ARTICLE_CATEGORIES, type Article, type ArticleCategory, type SourceAttribution } from "@/types";
+import { prisma } from '@/lib/db';
+import { timeAgo, estimateReadTime } from '@/lib/format';
+import {
+  heroArticle,
+  heroSideArticles,
+  latestNews,
+  marketCards,
+} from '@/data/articles';
+import {
+  ARTICLE_CATEGORIES,
+  type Article,
+  type ArticleCategory,
+  type SourceAttribution,
+} from '@/types';
 
-const VALID_SOURCE_NAMES: SourceAttribution["name"][] = ["BeInCrypto", "Coinfomania", "Quorum"];
+const VALID_SOURCE_NAMES: SourceAttribution['name'][] = [
+  'BeInCrypto',
+  'Coinfomania',
+  'Quorum',
+];
 
+// Normalize an article category and fall back to Markets when invalid.
 function toArticleCategory(raw: string): ArticleCategory {
-  return ARTICLE_CATEGORIES.includes(raw as ArticleCategory) ? (raw as ArticleCategory) : "Markets";
+  return ARTICLE_CATEGORIES.includes(raw as ArticleCategory)
+    ? (raw as ArticleCategory)
+    : 'Markets';
 }
 
-function toSourceName(raw: string | undefined): SourceAttribution["name"] {
+// Normalize a source name and fall back to Quorum when invalid.
+function toSourceName(raw: string | undefined): SourceAttribution['name'] {
   return raw && (VALID_SOURCE_NAMES as string[]).includes(raw)
-    ? (raw as SourceAttribution["name"])
-    : "Quorum";
+    ? (raw as SourceAttribution['name'])
+    : 'Quorum';
 }
 
+// Remove duplicate articles while preserving their original order.
 function dedupeById(list: Article[]): Article[] {
   const seen = new Set<string>();
+
   return list.filter((a) => {
     if (seen.has(a.id)) return false;
+
     seen.add(a.id);
     return true;
   });
@@ -36,13 +57,7 @@ export interface ArticlesPresentation {
   usingLiveData: boolean;
 }
 
-/**
- * Reads published articles from the DB — used by `app/api/articles/route.ts` and directly by
- * the homepage/Markets/Ecosystem/News server components (no self-fetch over HTTP, same
- * convention as the ticker/networkSnapshot presenters). Falls back to the static
- * `data/articles.ts` set — and says so via `usingLiveData` — whenever the DB has nothing
- * published yet or isn't reachable (§12: never show stale/fake data as live).
- */
+// Fetch published articles and fall back to sample data when live data is unavailable.
 export async function getArticlesPresentation(
   opts: { category?: ArticleCategory; limit?: number } = {},
 ): Promise<ArticlesPresentation> {
@@ -50,37 +65,57 @@ export async function getArticlesPresentation(
 
   try {
     const rows = await prisma.article.findMany({
-      where: { status: "published", ...(opts.category ? { category: opts.category } : {}) },
-      orderBy: { publishedAt: "desc" },
+      where: {
+        status: 'published',
+        ...(opts.category ? { category: opts.category } : {}),
+      },
+      orderBy: { publishedAt: 'desc' },
       take: limit,
     });
 
     if (rows.length === 0) {
-      return { articles: fallbackSlice(opts.category, limit), usingLiveData: false };
+      return {
+        articles: fallbackSlice(opts.category, limit),
+        usingLiveData: false,
+      };
     }
 
     const articles: Article[] = rows.map((a: any) => ({
       id: a.id,
       category: toArticleCategory(a.category),
       headline: a.headline,
-      dek: a.dek ?? "",
-      desk: a.automated ? "Quorum Automated Desk" : (a.sourceNames[0] ?? "Quorum"),
+      dek: a.dek ?? '',
+      desk: a.automated
+        ? 'Quorum Automated Desk'
+        : (a.sourceNames[0] ?? 'Quorum'),
       timeAgo: timeAgo(a.publishedAt ?? a.generatedAt),
       readTime: estimateReadTime(a.dek || a.headline),
       automated: a.automated,
-      source: { name: toSourceName(a.sourceNames[0]), url: a.sourceUrls[0] ?? "#" },
+      source: {
+        name: toSourceName(a.sourceNames[0]),
+        url: a.sourceUrls[0] ?? '#',
+      },
       href: `/news/${a.id}`,
     }));
 
     return { articles, usingLiveData: true };
   } catch {
-    // DB not reachable / not migrated yet — degrade to the static set rather than throwing.
-    return { articles: fallbackSlice(opts.category, limit), usingLiveData: false };
+    return {
+      articles: fallbackSlice(opts.category, limit),
+      usingLiveData: false,
+    };
   }
 }
 
-function fallbackSlice(category: ArticleCategory | undefined, limit: number): Article[] {
-  const pool = category ? FALLBACK_ALL.filter((a) => a.category === category) : FALLBACK_ALL;
+// Return fallback articles filtered by category and limited to the requested count.
+function fallbackSlice(
+  category: ArticleCategory | undefined,
+  limit: number,
+): Article[] {
+  const pool = category
+    ? FALLBACK_ALL.filter((a) => a.category === category)
+    : FALLBACK_ALL;
+
   return pool.slice(0, limit);
 }
 
@@ -90,17 +125,22 @@ export interface HeroPresentation {
   usingLiveData: boolean;
 }
 
-/** Hero = most recently published article overall; side rail = the next few after it. There's
- * no separate "is this the hero" flag in the DB — recency is the whole signal, same as any
- * homepage "top story" slot would use. */
+// Fetch the latest articles and prepare the homepage hero layout.
 export async function getHeroPresentation(): Promise<HeroPresentation> {
-  const { articles, usingLiveData } = await getArticlesPresentation({ limit: 4 });
+  const { articles, usingLiveData } = await getArticlesPresentation({
+    limit: 4,
+  });
 
   if (!usingLiveData || articles.length === 0) {
-    return { hero: heroArticle, side: heroSideArticles, usingLiveData: false };
+    return {
+      hero: heroArticle,
+      side: heroSideArticles,
+      usingLiveData: false,
+    };
   }
 
   const [hero, ...side] = articles;
+
   return { hero, side, usingLiveData: true };
 }
 
@@ -117,19 +157,24 @@ export interface ArticleDetail {
   sourceUrls: string[];
 }
 
-/** Single published article for the /news/[id] detail page and app/api/articles/[id]. */
-export async function getArticleById(id: string): Promise<ArticleDetail | null> {
+// Fetch a published article by ID and return its presentation data.
+export async function getArticleById(
+  id: string,
+): Promise<ArticleDetail | null> {
   try {
     const a = await prisma.article.findUnique({ where: { id } });
-    if (!a || a.status !== "published") return null;
+
+    if (!a || a.status !== 'published') return null;
 
     return {
       id: a.id,
       category: toArticleCategory(a.category),
       headline: a.headline,
-      dek: a.dek ?? "",
+      dek: a.dek ?? '',
       body: a.body,
-      desk: a.automated ? "Quorum Automated Desk" : (a.sourceNames[0] ?? "Quorum"),
+      desk: a.automated
+        ? 'Quorum Automated Desk'
+        : (a.sourceNames[0] ?? 'Quorum'),
       timeAgo: timeAgo(a.publishedAt ?? a.generatedAt),
       automated: a.automated,
       sourceNames: a.sourceNames,

@@ -1,16 +1,21 @@
-import { learnGuides } from "@/data/learn";
+import { learnGuides } from '@/data/learn';
 
 // Learn page: explainer content, not a live-data template.
 export default function LearnSection() {
   return (
     <section className="mx-auto max-w-site px-6 pb-10" id="learn">
+      {/* Learn section header */}
       <div className="flex items-baseline justify-between border-b-2 border-ink pb-[18px] pt-9 mb-6">
         <h2 className="font-display text-2xl font-extrabold text-ink">Learn</h2>
-        <a className="text-[13.5px] font-semibold text-olive hover:underline" href="#">
+        <a
+          className="text-[13.5px] font-semibold text-olive hover:underline"
+          href="#"
+        >
           All guides
         </a>
       </div>
 
+      {/* Educational guides */}
       <div className="grid gap-4 sm:grid-cols-2">
         {learnGuides.map((guide) => (
           <a

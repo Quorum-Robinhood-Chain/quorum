@@ -1,6 +1,7 @@
 export default function SiteFooter() {
   return (
     <footer className="site">
+      {/* Footer brand and site description */}
       <div className="footer-grid">
         <div className="footer-col footer-brand">
           <a className="logo" href="/">
@@ -18,10 +19,12 @@ export default function SiteFooter() {
             Quorum <span className="chain">Robinhood Chain</span>
           </a>
           <p>
-            Independent news and market data for the Robinhood Chain ecosystem. Not affiliated
-            with, and not operated by, Robinhood Markets, Inc.
+            Independent news and market data for the Robinhood Chain ecosystem.
+            Not affiliated with, and not operated by, Robinhood Markets, Inc.
           </p>
         </div>
+
+        {/* Network links */}
         <div className="footer-col">
           <h4>Network</h4>
           <ul>
@@ -39,6 +42,8 @@ export default function SiteFooter() {
             </li>
           </ul>
         </div>
+
+        {/* Ecosystem links */}
         <div className="footer-col">
           <h4>Ecosystem</h4>
           <ul>
@@ -56,6 +61,8 @@ export default function SiteFooter() {
             </li>
           </ul>
         </div>
+
+        {/* Editorial links */}
         <div className="footer-col">
           <h4>Editorial</h4>
           <ul>
@@ -73,6 +80,8 @@ export default function SiteFooter() {
             </li>
           </ul>
         </div>
+
+        {/* Legal links */}
         <div className="footer-col">
           <h4>Legal</h4>
           <ul>
@@ -91,8 +100,13 @@ export default function SiteFooter() {
           </ul>
         </div>
       </div>
+
+      {/* Copyright and social links */}
       <div className="footer-bottom">
-        <span>© 2026 Quorum. Not financial advice. Independent coverage of Robinhood Chain.</span>
+        <span>
+          © 2026 Quorum. Not financial advice. Independent coverage of Robinhood
+          Chain.
+        </span>
         <div className="socials">
           <a href="#" aria-label="X / Twitter">
             <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -104,7 +118,15 @@ export default function SiteFooter() {
           </a>
           <a href="#" aria-label="Discord">
             <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-              <rect x="4" y="7" width="16" height="11" rx="4" stroke="currentColor" strokeWidth="1.6" />
+              <rect
+                x="4"
+                y="7"
+                width="16"
+                height="11"
+                rx="4"
+                stroke="currentColor"
+                strokeWidth="1.6"
+              />
               <circle cx="9.5" cy="12.5" r="1.3" fill="currentColor" />
               <circle cx="14.5" cy="12.5" r="1.3" fill="currentColor" />
             </svg>
