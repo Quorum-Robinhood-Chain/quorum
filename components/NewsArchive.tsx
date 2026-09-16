@@ -13,7 +13,7 @@ export default function NewsArchive({
   categories: ArticleCategory[];
   usingLiveData: boolean;
 }) {
-  // Track the currently selected news category
+  // Track the currently selected news category test
   const [active, setActive] = useState<ArticleCategory | 'All'>('All');
 
   // Filter articles based on the selected category
