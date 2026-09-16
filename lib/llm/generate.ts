@@ -1,9 +1,13 @@
 import { prisma } from '@/lib/db';
 import { chatCompletion } from './client';
-import { SYSTEM_PROMPT, TEMPLATE_INSTRUCTIONS, TEMPLATE_LABELS, type TemplateType } from './prompts';
+import {
+  SYSTEM_PROMPT,
+  TEMPLATE_INSTRUCTIONS,
+  TEMPLATE_LABELS,
+  type TemplateType,
+} from './prompts';
 import { fetchNewPairsSince } from '@/lib/market/chain-rpc';
 
-// Hourly rotation (brief §6.2). `weekly_digest` runs on its own lower-frequency schedule.
 const HOURLY_TEMPLATES: TemplateType[] = [
   'trending_dex_tokens',
   'new_token_launches',
@@ -14,7 +18,7 @@ const HOURLY_TEMPLATES: TemplateType[] = [
 
 interface GatheredData {
   verifiedData: Record<string, unknown>;
-  generationInputs: string[]; // audit trail (§12)
+  generationInputs: string[];
   sourceNames: string[];
   sourceUrls: string[];
   rawItemIds: string[];
@@ -28,7 +32,7 @@ interface SnapshotRow {
   source: string;
 }
 
-/** Latest snapshot per (scope, metric) under a scope prefix — same "current value" rule as the ticker. */
+// Fetch the latest snapshot for each scope and metric combination.
 async function latestSnapshots(scopePrefix: string): Promise<SnapshotRow[]> {
   const rows = await prisma.marketSnapshot.findMany({
     where: { scope: { startsWith: scopePrefix } },
@@ -37,9 +41,12 @@ async function latestSnapshots(scopePrefix: string): Promise<SnapshotRow[]> {
   });
 
   const seen = new Set<string>();
+
   return rows.filter((row: SnapshotRow) => {
     const key = `${row.scope}:${row.metric}`;
+
     if (seen.has(key)) return false;
+
     seen.add(key);
     return true;
   });
@@ -48,15 +55,24 @@ async function latestSnapshots(scopePrefix: string): Promise<SnapshotRow[]> {
 const describeSnapshot = (s: SnapshotRow) =>
   `${s.source}:${s.scope}:${s.metric} = ${s.value}`;
 
-const uniqueSources = (rows: SnapshotRow[]): string[] => [...new Set(rows.map((r) => r.source))];
+const uniqueSources = (rows: SnapshotRow[]): string[] => [
+  ...new Set(rows.map((r) => r.source)),
+];
 
+// Gather verified data required by the selected article template.
 async function gatherData(template: TemplateType): Promise<GatheredData> {
   switch (template) {
     case 'trending_dex_tokens': {
       const snapshots = await latestSnapshots('token:');
+
       return {
         verifiedData: {
-          tokens: snapshots.map((s) => ({ scope: s.scope, metric: s.metric, value: s.value, source: s.source })),
+          tokens: snapshots.map((s) => ({
+            scope: s.scope,
+            metric: s.metric,
+            value: s.value,
+            source: s.source,
+          })),
         },
         generationInputs: snapshots.map(describeSnapshot),
         sourceNames: uniqueSources(snapshots),
@@ -68,10 +84,12 @@ async function gatherData(template: TemplateType): Promise<GatheredData> {
 
     case 'new_token_launches': {
       const pairs = await fetchNewPairsSince();
+
       return {
         verifiedData: { newPairs: pairs },
         generationInputs: pairs.map(
-          (p) => `chain-rpc:new-pair dex=${p.dex} pair=${p.pairAddress} block=${p.blockNumber}`,
+          (p) =>
+            `chain-rpc:new-pair dex=${p.dex} pair=${p.pairAddress} block=${p.blockNumber}`,
         ),
         sourceNames: ['Chain RPC'],
         sourceUrls: [],
@@ -88,15 +106,28 @@ async function gatherData(template: TemplateType): Promise<GatheredData> {
         take: 8,
         include: { source: true },
       });
+
       const tvl = await latestSnapshots('protocol:');
 
       return {
         verifiedData: {
-          headlines: items.map((i) => ({ title: i.title, excerpt: i.excerpt, source: i.source.name, url: i.url })),
-          protocolTvl: tvl.map((s) => ({ scope: s.scope, metric: s.metric, value: s.value })),
+          headlines: items.map((i) => ({
+            title: i.title,
+            excerpt: i.excerpt,
+            source: i.source.name,
+            url: i.url,
+          })),
+          protocolTvl: tvl.map((s) => ({
+            scope: s.scope,
+            metric: s.metric,
+            value: s.value,
+          })),
         },
         generationInputs: [
-          ...items.map((i) => `${i.source.name}:headline+excerpt, fetched ${i.fetchedAt.toISOString()}`),
+          ...items.map(
+            (i) =>
+              `${i.source.name}:headline+excerpt, fetched ${i.fetchedAt.toISOString()}`,
+          ),
           ...tvl.map(describeSnapshot),
         ],
         sourceNames: [...new Set(items.map((i) => i.source.name))],
@@ -107,8 +138,12 @@ async function gatherData(template: TemplateType): Promise<GatheredData> {
     }
 
     case 'stock_token_movers': {
-      const stockTokens = await prisma.token.findMany({ where: { category: 'stock_token', isTracked: true } });
+      const stockTokens = await prisma.token.findMany({
+        where: { category: 'stock_token', isTracked: true },
+      });
+
       const scopes = stockTokens.map((t) => `token:${t.symbol}`);
+
       const snapshots = scopes.length
         ? await prisma.marketSnapshot.findMany({
             where: { scope: { in: scopes }, metric: 'price' },
@@ -118,7 +153,13 @@ async function gatherData(template: TemplateType): Promise<GatheredData> {
         : [];
 
       return {
-        verifiedData: { stockTokens: snapshots.map((s) => ({ scope: s.scope, metric: s.metric, value: s.value })) },
+        verifiedData: {
+          stockTokens: snapshots.map((s) => ({
+            scope: s.scope,
+            metric: s.metric,
+            value: s.value,
+          })),
+        },
         generationInputs: snapshots.map(describeSnapshot),
         sourceNames: uniqueSources(snapshots),
         sourceUrls: [],
@@ -129,12 +170,20 @@ async function gatherData(template: TemplateType): Promise<GatheredData> {
 
     case 'tvl_lending_snapshot': {
       const morpho = await latestSnapshots('protocol:morpho');
-      const chain = (await latestSnapshots('chain')).filter((s) => s.metric === 'tvl');
+      const chain = (await latestSnapshots('chain')).filter(
+        (s) => s.metric === 'tvl',
+      );
 
       return {
         verifiedData: {
-          morpho: morpho.map((s) => ({ metric: s.metric, value: s.value })),
-          chainTvl: chain.map((s) => ({ metric: s.metric, value: s.value })),
+          morpho: morpho.map((s) => ({
+            metric: s.metric,
+            value: s.value,
+          })),
+          chainTvl: chain.map((s) => ({
+            metric: s.metric,
+            value: s.value,
+          })),
         },
         generationInputs: [...morpho, ...chain].map(describeSnapshot),
         sourceNames: uniqueSources([...morpho, ...chain]),
@@ -146,14 +195,23 @@ async function gatherData(template: TemplateType): Promise<GatheredData> {
 
     case 'weekly_digest': {
       const since = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+
       const articles = await prisma.article.findMany({
-        where: { status: 'published', publishedAt: { gte: since } },
+        where: {
+          status: 'published',
+          publishedAt: { gte: since },
+        },
         orderBy: { publishedAt: 'desc' },
         take: 20,
       });
 
       return {
-        verifiedData: { recentHeadlines: articles.map((a) => ({ headline: a.headline, category: a.category })) },
+        verifiedData: {
+          recentHeadlines: articles.map((a) => ({
+            headline: a.headline,
+            category: a.category,
+          })),
+        },
         generationInputs: articles.map((a) => `article:${a.id}:${a.headline}`),
         sourceNames: ['Quorum'],
         sourceUrls: [],
@@ -171,34 +229,47 @@ interface GeneratedArticle {
   category: string;
 }
 
-/** The model is told to return raw JSON; fences are stripped defensively. */
+// Parse and validate the JSON returned by the language model.
 function parseModelJson(text: string): GeneratedArticle {
   const cleaned = text
     .replace(/^```(?:json)?\s*/i, '')
     .replace(/```\s*$/, '')
     .trim();
+
   const parsed = JSON.parse(cleaned);
-  if (!parsed?.headline || !parsed?.body) throw new Error('model output missing headline/body');
+
+  if (!parsed?.headline || !parsed?.body) {
+    throw new Error('model output missing headline/body');
+  }
+
   return parsed;
 }
 
 export type GenerateResult =
   | { skipped: true; template: TemplateType; reason: string }
-  | { skipped: false; template: TemplateType; articleId: string; headline: string };
+  | {
+      skipped: false;
+      template: TemplateType;
+      articleId: string;
+      headline: string;
+    };
 
-/**
- * Runs one generation cycle (§8.4): pick a template, gather only verified DB data, call MiMo,
- * store the result as a draft with its full audit trail.
- *
- * Returns `skipped` and writes nothing when there isn't enough verified data — per §6.1 a
- * missing number is never approximated. That's the expected outcome for the first few cycles.
- */
-export async function generateArticle(forceTemplate?: TemplateType): Promise<GenerateResult> {
-  const template = forceTemplate ?? HOURLY_TEMPLATES[Math.floor(Math.random() * HOURLY_TEMPLATES.length)];
+// Generate an automated draft from verified data and the selected template.
+export async function generateArticle(
+  forceTemplate?: TemplateType,
+): Promise<GenerateResult> {
+  const template =
+    forceTemplate ??
+    HOURLY_TEMPLATES[Math.floor(Math.random() * HOURLY_TEMPLATES.length)];
+
   const data = await gatherData(template);
 
   if (!data.hasEnoughData) {
-    return { skipped: true, template, reason: 'insufficient verified data for this cycle' };
+    return {
+      skipped: true,
+      template,
+      reason: 'insufficient verified data for this cycle',
+    };
   }
 
   const userMessage = [
@@ -216,6 +287,7 @@ export async function generateArticle(forceTemplate?: TemplateType): Promise<Gen
 
   const generated = parseModelJson(raw);
 
+  // Create the generated article as a draft for human review (§8.5).
   const article = await prisma.article.create({
     data: {
       templateType: TEMPLATE_LABELS[template],
@@ -227,7 +299,7 @@ export async function generateArticle(forceTemplate?: TemplateType): Promise<Gen
       sourceNames: data.sourceNames,
       sourceUrls: data.sourceUrls,
       generationInputs: data.generationInputs,
-      status: 'draft', // human review gate (§8.5)
+      status: 'draft',
     },
   });
 
@@ -238,5 +310,10 @@ export async function generateArticle(forceTemplate?: TemplateType): Promise<Gen
     });
   }
 
-  return { skipped: false, template, articleId: article.id, headline: article.headline };
+  return {
+    skipped: false,
+    template,
+    articleId: article.id,
+    headline: article.headline,
+  };
 }

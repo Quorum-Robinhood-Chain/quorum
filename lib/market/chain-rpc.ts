@@ -2,9 +2,6 @@ import { Interface, type Log } from 'ethers';
 import { getProvider, hasRpcConfigured } from './rpc';
 import { envJson } from '@/lib/env';
 
-// "New token launches" detection: watch each DEX factory's PairCreated events (§6.2, §7.2).
-// Factory addresses aren't guessable — set DEX_FACTORY_MAP from each DEX's deployment docs.
-
 const FACTORY_IFACE = new Interface([
   'event PairCreated(address indexed token0, address indexed token1, address pair, uint256)',
 ]);
@@ -18,9 +15,12 @@ export interface NewPairEvent {
   txHash: string;
 }
 
-/** Scans the last `blockRange` blocks of each configured factory for new pairs. */
-export async function fetchNewPairsSince(blockRange = 1800): Promise<NewPairEvent[]> {
+// Fetch newly created DEX pairs from the configured factory contracts.
+export async function fetchNewPairsSince(
+  blockRange = 1800,
+): Promise<NewPairEvent[]> {
   const factories = envJson<string>('DEX_FACTORY_MAP');
+
   if (Object.keys(factories).length === 0 || !hasRpcConfigured()) return [];
 
   const provider = getProvider();
@@ -32,11 +32,18 @@ export async function fetchNewPairsSince(blockRange = 1800): Promise<NewPairEven
 
   for (const [dex, address] of Object.entries(factories)) {
     try {
-      const logs: Log[] = await provider.getLogs({ address, fromBlock, toBlock: latest, topics: [topic] });
+      const logs: Log[] = await provider.getLogs({
+        address,
+        fromBlock,
+        toBlock: latest,
+        topics: [topic],
+      });
 
       for (const log of logs) {
         const parsed = FACTORY_IFACE.parseLog(log);
+
         if (!parsed) continue;
+
         results.push({
           dex,
           token0: parsed.args.token0,
@@ -47,16 +54,17 @@ export async function fetchNewPairsSince(blockRange = 1800): Promise<NewPairEven
         });
       }
     } catch {
-      // One DEX's ABI not matching shouldn't break the others.
+      // Ignore individual DEX errors so other configured factories can still be processed.
     }
   }
 
   return results;
 }
 
-/** Latest block height — used as a cheap chain-activity signal in the Network Snapshot. */
+// Fetch the latest block number when an RPC provider is configured.
 export async function fetchLatestBlockNumber(): Promise<number | null> {
   if (!hasRpcConfigured()) return null;
+
   try {
     return await getProvider().getBlockNumber();
   } catch {

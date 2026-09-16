@@ -8,7 +8,7 @@ const KEYWORDS = [
   'stock token',
   'stock tokens',
   'tokenized stock',
-  'tokenized equit', // matches equity/equities
+  'tokenized equit',
   'usdg',
 ];
 

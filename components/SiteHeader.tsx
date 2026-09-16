@@ -1,26 +1,28 @@
-"use client";
+'use client';
 
-import { useState } from "react";
-import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { useState } from 'react';
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 
-// Nav: Governance/Staking → Ecosystem/Tokens; "Connect Wallet" → Subscribe.
-// Active item derived from pathname.
 const NAV_LINKS = [
-  { href: "/markets", label: "Markets" },
-  { href: "/ecosystem", label: "Ecosystem" },
-  { href: "/tokens", label: "Tokens" },
-  { href: "/news", label: "News" },
-  { href: "/learn", label: "Learn" },
+  { href: '/markets', label: 'Markets' },
+  { href: '/ecosystem', label: 'Ecosystem' },
+  { href: '/tokens', label: 'Tokens' },
+  { href: '/news', label: 'News' },
+  { href: '/learn', label: 'Learn' },
 ];
 
 export default function SiteHeader() {
   const [navOpen, setNavOpen] = useState(false);
   const pathname = usePathname();
 
+  // Determine the active navigation route.
+  // Toggle the mobile navigation menu.
+
   return (
     <header className="site">
       <div className="header-row">
+        {/* Site logo and home link */}
         <Link className="logo" href="/" aria-label="Quorum, home">
           <span className="mark">
             <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -36,32 +38,55 @@ export default function SiteHeader() {
           Quorum <span className="chain">Robinhood Chain</span>
         </Link>
 
-        <nav className={`primary${navOpen ? " open" : ""}`} aria-label="Main navigation">
+        {/* Primary site navigation */}
+        <nav
+          className={`primary${navOpen ? ' open' : ''}`}
+          aria-label="Main navigation"
+        >
           {NAV_LINKS.map((link) => {
-            const isRoute = !link.href.includes("#");
+            const isRoute = !link.href.includes('#');
             const current = isRoute && pathname === link.href;
+
             return (
-              <Link key={link.href} href={link.href} className={current ? "current" : undefined}>
+              <Link
+                key={link.href}
+                href={link.href}
+                className={current ? 'current' : undefined}
+              >
                 {link.label}
               </Link>
             );
           })}
         </nav>
 
+        {/* Header actions and mobile menu toggle */}
         <div className="header-actions">
           <button className="icon-btn" aria-label="Search">
             <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-              <circle cx="11" cy="11" r="7" stroke="currentColor" strokeWidth="2" />
-              <path d="M21 21L16.5 16.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+              <circle
+                cx="11"
+                cy="11"
+                r="7"
+                stroke="currentColor"
+                strokeWidth="2"
+              />
+              <path
+                d="M21 21L16.5 16.5"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+              />
             </svg>
           </button>
+
           <a className="btn-connect" href="/#subscribe">
             <span className="dot" />
             <span className="label">Subscribe</span>
           </a>
+
           <button
             className="nav-toggle"
-            aria-label={navOpen ? "Close menu" : "Open menu"}
+            aria-label={navOpen ? 'Close menu' : 'Open menu'}
             aria-expanded={navOpen}
             onClick={() => setNavOpen((open) => !open)}
           >

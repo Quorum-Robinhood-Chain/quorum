@@ -11,13 +11,24 @@ export const metadata: Metadata = {
     'Quorum covers the Robinhood Chain ecosystem: DEX activity, Stock Tokens, TVL, and ecosystem news, refreshed automatically from live market data.',
 };
 
-export default function SiteLayout({ children }: { children: React.ReactNode }) {
+export default function SiteLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   return (
     <html lang="en" className={fontVariables}>
       <body>
+        {/* Global market ticker */}
         <TickerBar />
+
+        {/* Main site navigation */}
         <SiteHeader />
+
+        {/* Page content */}
         {children}
+
+        {/* Global site footer */}
         <SiteFooter />
       </body>
     </html>

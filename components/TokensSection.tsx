@@ -25,6 +25,12 @@ export default async function TokensSection() {
         </a>
       </div>
 
+      {/* Show sample data notice when live data is unavailable */}
+      {!usingLiveData && (
+        <span className="mb-6 inline-block rounded-full bg-panel px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-gray-600">
+          Sample data — live feed not connected yet
+        </span>
+      )}
 
       {/* Nothing tracked at all — say so instead of rendering an empty grid */}
       {trendingTokens.length === 0 && (

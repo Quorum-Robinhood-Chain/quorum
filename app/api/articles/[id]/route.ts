@@ -1,10 +1,19 @@
-import { NextRequest, NextResponse } from "next/server";
-import { getArticleById } from "@/lib/presenters/articles";
+import { NextRequest, NextResponse } from 'next/server';
 
-export const dynamic = "force-dynamic";
+import { getArticleById } from '@/lib/presenters/articles';
 
-export async function GET(_req: NextRequest, { params }: { params: { id: string } }) {
+export const dynamic = 'force-dynamic';
+
+export async function GET(
+  _req: NextRequest,
+  { params }: { params: { id: string } },
+) {
+  // Fetch the requested article by ID.
   const article = await getArticleById(params.id);
-  if (!article) return NextResponse.json({ error: "not found" }, { status: 404 });
+
+  if (!article) {
+    return NextResponse.json({ error: 'not found' }, { status: 404 });
+  }
+
   return NextResponse.json({ article });
 }

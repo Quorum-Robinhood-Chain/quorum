@@ -1,24 +1,28 @@
-import { getArticlesPresentation } from "@/lib/presenters/articles";
+import { getArticlesPresentation } from '@/lib/presenters/articles';
+import { CategoryThumb } from '@/lib/categoryVisual';
 
-// Homepage "Markets" card grid (bukan halaman /markets). Wired to the DB via
-// getArticlesPresentation — general recent published articles, same simplification the
-// original static data/articles.ts set used. Falls back to the static placeholder set if
-// nothing's live yet.
 export default async function MarketsSection() {
-  const { articles: marketCards } = await getArticlesPresentation({ limit: 3,  category: "Markets" });
+  // Fetch the 3 latest market articles.
+  const { articles: marketCards } = await getArticlesPresentation({
+    limit: 3,
+    category: 'Markets',
+  });
 
   return (
     <section className="wrap" id="markets">
+      {/* Markets section header */}
       <div className="section-head">
         <h2>Markets</h2>
         <a className="view-all" href="/markets">
           All market data
         </a>
       </div>
+
+      {/* Market article cards */}
       <div className="news-grid">
         {marketCards.map((article) => (
-          <article className="card" key={article.id}>
-            <div className="thumb" aria-hidden="true" />
+          <a className="card" href={article.href} key={article.id}>
+            <CategoryThumb category={article.category} />
             <span className="cat">{article.category}</span>
             <h3>{article.headline}</h3>
             <p className="excerpt">{article.dek}</p>
@@ -33,7 +37,7 @@ export default async function MarketsSection() {
                 </>
               )}
             </div>
-          </article>
+          </a>
         ))}
       </div>
     </section>

@@ -11,12 +11,12 @@ const JOBS = [
 
 type Feedback = { ok: boolean; text: string };
 
-/** Runs a pipeline job on demand (§6.3) — the same jobs the cron schedule calls. */
 export default function TriggerJobsButton() {
   const router = useRouter();
   const [runningJob, setRunningJob] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<Feedback | null>(null);
 
+  // Run the selected admin job and handle the result.
   async function run(job: string) {
     setRunningJob(job);
     setFeedback(null);
@@ -32,7 +32,10 @@ export default function TriggerJobsButton() {
       if (!res.ok || data.ok === false) {
         setFeedback({ ok: false, text: data.error ?? res.statusText });
       } else if (data.result?.skipped) {
-        setFeedback({ ok: false, text: `Skipped — not enough verified data (${data.result.template})` });
+        setFeedback({
+          ok: false,
+          text: `Skipped — not enough verified data (${data.result.template})`,
+        });
       } else {
         setFeedback({ ok: true, text: 'Job finished' });
         router.refresh();
@@ -46,6 +49,7 @@ export default function TriggerJobsButton() {
 
   return (
     <div className="relative flex items-center gap-2">
+      {/* Manual job trigger buttons */}
       {JOBS.map((job) => (
         <button
           key={job.id}
@@ -57,10 +61,13 @@ export default function TriggerJobsButton() {
         </button>
       ))}
 
+      {/* Display the latest job execution feedback */}
       {feedback && (
         <div
           className={`absolute right-0 top-full z-10 mt-1.5 w-64 rounded-lg border px-3 py-1.5 text-[11px] font-medium ${
-            feedback.ok ? 'border-line bg-white text-olive' : 'border-red-200 bg-red-50 text-danger'
+            feedback.ok
+              ? 'border-line bg-white text-olive'
+              : 'border-red-200 bg-red-50 text-danger'
           }`}
         >
           {feedback.text}

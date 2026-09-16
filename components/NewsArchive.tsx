@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import { ArticleCategory, Article } from '@/types';
+import { CategoryThumb } from '@/lib/categoryVisual';
 
 export default function NewsArchive({
   articles,
@@ -62,14 +63,17 @@ export default function NewsArchive({
             href={article.href}
             className="flex flex-col gap-1.5 p-4.5 hover:bg-panel sm:flex-row sm:items-start sm:gap-5"
           >
-            <div className="shrink-0 sm:w-28">
+            <CategoryThumb
+              category={article.category}
+              className="flex h-16 w-full shrink-0 items-center justify-center rounded-card bg-[#00152B] sm:h-20 sm:w-28"
+            />
+
+            <div className="min-w-0 flex-1">
               <span className="text-[11px] font-bold uppercase tracking-wide text-olive">
                 {article.category}
               </span>
-            </div>
 
-            <div className="min-w-0 flex-1">
-              <h3 className="text-[16px] font-bold leading-snug text-ink">
+              <h3 className="mt-1 text-[16px] font-bold leading-snug text-ink">
                 {article.headline}
               </h3>
 

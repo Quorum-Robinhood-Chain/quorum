@@ -6,7 +6,7 @@ import {
 } from '@/data/ecosystem';
 
 export default async function EcosystemGrid() {
-  // Fetch ecosystem protocols and the 3 latest ecosystem news articles
+  // Fetch ecosystem protocols and the 3 latest ecosystem news articles.
   const [{ protocols, usingLiveData }, { articles: ecosystemNews }] =
     await Promise.all([
       getEcosystemPresentation(),

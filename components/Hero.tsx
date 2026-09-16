@@ -1,22 +1,23 @@
-import { getHeroPresentation } from "@/lib/presenters/articles";
+import { getHeroPresentation } from '@/lib/presenters/articles';
 
-// Wired to the DB via getHeroPresentation — the most recently published article becomes the
-// hero, the next few become the side rail. Falls back to the static placeholder set if nothing's
-// live yet (no attribute to flag it here since the hero card's own "Automated summary" badge
-// already communicates provenance either way).
+// Fetch the hero article and supporting side stories.
 export default async function Hero() {
-  const { hero: heroArticle, side: heroSideArticles } = await getHeroPresentation();
+  const { hero: heroArticle, side: heroSideArticles } =
+    await getHeroPresentation();
 
   return (
     <section className="hero" id="top">
       <div className="hero-grid">
         <div className="hero-main">
+          {/* Hero article header */}
           <span className="badge">
             <span className="pulse" />
             Breaking
-          </span>{" "}
-          {heroArticle.automated && <span className="badge automated">Automated summary</span>}
-
+          </span>{' '}
+          {heroArticle.automated && (
+            <span className="badge automated">Automated summary</span>
+          )}
+          {/* Hero article details */}
           <div className="hero-lead">
             <h1>{heroArticle.headline}</h1>
             <p className="dek">{heroArticle.dek}</p>
@@ -27,20 +28,31 @@ export default async function Hero() {
                 <span className="av" />
               </div>
               <span>
-                {heroArticle.desk} · {heroArticle.timeAgo} · Not financial advice
+                {heroArticle.desk} · {heroArticle.timeAgo} · Not financial
+                advice
               </span>
             </div>
           </div>
-
+          {/* Hero network visualization */}
           <div className="hero-figure" aria-hidden="true">
             <svg viewBox="0 0 600 260" width="100%" height="100%">
               <defs>
-                <pattern id="grid" width="26" height="26" patternUnits="userSpaceOnUse">
-                  <path d="M 26 0 L 0 0 0 26" fill="none" stroke="#E5E5E5" strokeWidth="1" />
+                <pattern
+                  id="grid"
+                  width="26"
+                  height="26"
+                  patternUnits="userSpaceOnUse"
+                >
+                  <path
+                    d="M 26 0 L 0 0 0 26"
+                    fill="none"
+                    stroke="#002855"
+                    strokeWidth="1.2"
+                  />
                 </pattern>
               </defs>
               <rect width="600" height="260" fill="url(#grid)" />
-              <g stroke="#5C7300" strokeWidth="1.4" opacity="0.55">
+              <g stroke="#CC0000" strokeWidth="1.4" opacity="0.6">
                 <line x1="80" y1="70" x2="230" y2="130" />
                 <line x1="230" y1="130" x2="150" y2="200" />
                 <line x1="230" y1="130" x2="380" y2="80" />
@@ -50,22 +62,30 @@ export default async function Hero() {
                 <line x1="500" y1="150" x2="330" y2="200" />
               </g>
               <g>
-                <circle cx="80" cy="70" r="7" fill="#0A0A0A" />
-                <circle cx="230" cy="130" r="10" fill="#D2FF01" stroke="#0A0A0A" strokeWidth="1.6" />
-                <circle cx="150" cy="200" r="7" fill="#0A0A0A" />
-                <circle cx="380" cy="80" r="9" fill="#0A0A0A" />
-                <circle cx="500" cy="150" r="7" fill="#0A0A0A" />
-                <circle cx="330" cy="200" r="7" fill="#0A0A0A" />
+                <circle cx="80" cy="70" r="7" fill="#FFFFFF" />
+                <circle
+                  cx="230"
+                  cy="130"
+                  r="10"
+                  fill="#CC0000"
+                  stroke="#FFFFFF"
+                  strokeWidth="1.6"
+                />
+                <circle cx="150" cy="200" r="7" fill="#FFFFFF" />
+                <circle cx="380" cy="80" r="9" fill="#FFFFFF" />
+                <circle cx="500" cy="150" r="7" fill="#FFFFFF" />
+                <circle cx="330" cy="200" r="7" fill="#FFFFFF" />
               </g>
             </svg>
           </div>
         </div>
 
+        {/* Supporting network stories */}
         <div className="hero-side">
           <h2 className="section-title">Next on the network</h2>
           {heroSideArticles.map((article, i) => (
             <a className="side-story" href={article.href} key={article.id}>
-              <span className="num">{String(i + 2).padStart(2, "0")}</span>
+              <span className="num">{String(i + 2).padStart(2, '0')}</span>
               <div className="body">
                 <h3>{article.headline}</h3>
                 <span className="tag">
