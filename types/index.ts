@@ -72,7 +72,7 @@ export type LearnGuide = {
   id: string;
   title: string;
   dek: string;
-  readTime: string;
+  body: string;
   href: string;
 };
 

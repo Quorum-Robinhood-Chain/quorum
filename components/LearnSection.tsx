@@ -31,7 +31,7 @@ export default function LearnSection() {
             </h3>
             <p className="text-sm leading-relaxed text-gray-600">{guide.dek}</p>
             <span className="mt-auto pt-2 text-xs text-gray-400">
-              Quorum Education Desk · {guide.readTime}
+              Quorum Education Desk
             </span>
           </a>
         ))}
