@@ -1,6 +1,12 @@
-import { heroArticle, heroSideArticles } from "@/data/articles";
+import { getHeroPresentation } from "@/lib/presenters/articles";
 
-export default function Hero() {
+// Wired to the DB via getHeroPresentation — the most recently published article becomes the
+// hero, the next few become the side rail. Falls back to the static placeholder set if nothing's
+// live yet (no attribute to flag it here since the hero card's own "Automated summary" badge
+// already communicates provenance either way).
+export default async function Hero() {
+  const { hero: heroArticle, side: heroSideArticles } = await getHeroPresentation();
+
   return (
     <section className="hero" id="top">
       <div className="hero-grid">
@@ -9,7 +15,7 @@ export default function Hero() {
             <span className="pulse" />
             Breaking
           </span>{" "}
-          <span className="badge automated">Automated summary</span>
+          {heroArticle.automated && <span className="badge automated">Automated summary</span>}
 
           <div className="hero-lead">
             <h1>{heroArticle.headline}</h1>

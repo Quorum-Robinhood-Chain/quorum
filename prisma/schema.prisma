@@ -1,0 +1,140 @@
+// Quorum — Prisma schema
+// Works with any Postgres provider (Supabase, Neon, RDS, local). Set DATABASE_URL in .env.
+// Mirrors the data model in dev-brief.md §10, with a few operational fields added
+// (status timestamps, audit fields) needed by the review queue and scheduler.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  // Neon/Supabase pooled connections drop long-lived prepared statements;
+  // if you're on a pooler (pgbouncer), also set DIRECT_URL for migrations.
+  directUrl = env("DIRECT_URL")
+}
+
+// ── Editorial / news sources (§7.1) ────────────────────────────────────────
+model Source {
+  id               String    @id @default(cuid())
+  name             String    @unique // "BeInCrypto" | "Coinfomania"
+  url              String
+  type             SourceType @default(news)
+  feedUrl          String?   // RSS/Atom URL if one exists — confirm before enabling
+  pollingIntervalMinutes Int @default(20)
+  robotsCheckedAt  DateTime?
+  tosNotes         String?
+  enabled          Boolean   @default(true)
+  createdAt        DateTime  @default(now())
+  rawItems         RawItem[]
+}
+
+enum SourceType {
+  news
+  api
+}
+
+// ── Raw ingested items before/after relevance filtering (§7.1, §8.2) ──────
+model RawItem {
+  id            String   @id @default(cuid())
+  sourceId      String
+  source        Source   @relation(fields: [sourceId], references: [id])
+  title         String
+  excerpt       String?  @db.Text
+  url           String   @unique
+  dedupeKey     String   @unique // hash(title+url) — prevents re-ingesting the same story
+  publishedAt   DateTime?
+  fetchedAt     DateTime @default(now())
+  isRelevant    Boolean  @default(false) // passed the "Robinhood Chain" keyword/embedding filter
+  usedInArticle Boolean  @default(false)
+
+  @@index([isRelevant, usedInArticle])
+}
+
+// ── Market / on-chain data snapshots (§7.2, §8.2) ──────────────────────────
+model MarketSnapshot {
+  id        String   @id @default(cuid())
+  scope     String   // "chain" | "token:ARC" | "protocol:morpho" | "stock_token:AAPLx"
+  metric    Metric
+  value     Float
+  unit      String?  // "usd" | "pct" | "count"
+  source    String   // "DefiLlama" | "Chainlink" | "Morpho API" | "Chain RPC" ...
+  timestamp DateTime @default(now())
+
+  @@index([scope, metric, timestamp])
+}
+
+enum Metric {
+  tvl
+  volume_24h
+  price
+  price_change_24h
+  apy
+  active_protocols
+  new_tokens_24h
+  gas_fee_avg
+  dex_volume_rank
+  tx_count
+}
+
+// ── Tokens tracked on Robinhood Chain (§10) ────────────────────────────────
+model Token {
+  id              String        @id @default(cuid())
+  symbol          String
+  name            String
+  contractAddress String?
+  dex             String?
+  category        TokenCategory
+  isTracked       Boolean       @default(true)
+  createdAt       DateTime      @default(now())
+
+  @@unique([symbol, contractAddress])
+}
+
+enum TokenCategory {
+  stock_token
+  meme
+  defi
+  other
+}
+
+// ── Generated / curated articles (§10, §8.6) ───────────────────────────────
+model Article {
+  id               String        @id @default(cuid())
+  templateType     String        // one of the §6.2 rotation templates
+  category         String        // "Markets" | "Ecosystem" | "Tokens" | "Stock Tokens" | "Learn" | "Security"
+  headline         String
+  dek              String?       @db.Text
+  body             String        @db.Text
+  automated        Boolean       @default(true)
+  edited           Boolean       @default(false)
+  sourceNames      String[]      // e.g. ["DefiLlama", "Arcus subgraph"] or ["BeInCrypto"]
+  sourceUrls       String[]
+  generationInputs String[]      // audit trail: which snippets/snapshots this was built from (§12)
+  status           ArticleStatus @default(draft)
+  reviewerId       String?
+  reviewer         Editor?       @relation(fields: [reviewerId], references: [id])
+  generatedAt      DateTime      @default(now())
+  reviewedAt       DateTime?
+  publishedAt      DateTime?
+
+  @@index([status, generatedAt])
+  @@index([category, publishedAt])
+}
+
+enum ArticleStatus {
+  draft
+  reviewed
+  published
+  rejected
+}
+
+// ── Editors (§10) ───────────────────────────────────────────────────────────
+model Editor {
+  id       String    @id @default(cuid())
+  name     String
+  username String    @unique
+  role     String    @default("editor")
+  articles Article[]
+}

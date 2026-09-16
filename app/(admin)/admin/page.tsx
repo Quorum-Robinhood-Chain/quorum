@@ -1,18 +1,33 @@
 import { cookies } from "next/headers";
 import { ADMIN_SESSION_COOKIE, verifySessionToken } from "@/lib/admin-auth";
-import { reviewQueue } from "@/data/admin-review";
+import { getReviewQueuePresentation } from "@/lib/presenters/reviewQueue";
+import { prisma } from "@/lib/db/client";
 import ReviewQueueTable from "@/components/admin/ReviewQueueTable";
 import LogoutButton from "@/components/admin/LogoutButton";
+import TriggerJobsButton from "@/components/admin/TriggerJobsButton";
 
 export default async function AdminDashboardPage() {
   const token = cookies().get(ADMIN_SESSION_COOKIE)?.value;
   const username = await verifySessionToken(token);
 
+  const { articles: reviewQueue, usingLiveData } = await getReviewQueuePresentation();
+
+  // Fall back to the seeded source count (2: BeInCrypto + Coinfomania) if the DB isn't
+  // reachable — same "sample data" degrade-gracefully convention as everything else here.
+  let sourcesMonitored = 2;
+  if (usingLiveData) {
+    try {
+      sourcesMonitored = await prisma.source.count();
+    } catch {
+      // keep the fallback
+    }
+  }
+
   const pending = reviewQueue.filter((a) => a.status === "draft").length;
   const publishedToday = reviewQueue.filter((a) => a.status === "published").length;
-  const automatedShare = Math.round(
-    (reviewQueue.filter((a) => a.automated).length / reviewQueue.length) * 100
-  );
+  const automatedShare = reviewQueue.length
+    ? Math.round((reviewQueue.filter((a) => a.automated).length / reviewQueue.length) * 100)
+    : 0;
 
   return (
     <div className="min-h-screen">
@@ -39,6 +54,7 @@ export default async function AdminDashboardPage() {
             <a href="/" className="text-xs font-semibold text-olive hover:underline">
               View site
             </a>
+            <TriggerJobsButton />
             <LogoutButton />
           </div>
         </div>
@@ -50,6 +66,11 @@ export default async function AdminDashboardPage() {
           Human-in-the-loop review before automated drafts go live (dev-brief §8.5) — especially
           anything carrying specific numbers or token names.
         </p>
+        {!usingLiveData && (
+          <span className="mt-3 inline-block rounded-full bg-panel px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-gray-600">
+            Sample data — no drafts generated yet, showing placeholder queue
+          </span>
+        )}
 
         <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
           <div className="rounded-card border border-line bg-white p-4">
@@ -65,18 +86,19 @@ export default async function AdminDashboardPage() {
             <div className="mt-1 text-xs text-gray-600">Automated-generated</div>
           </div>
           <div className="rounded-card border border-line bg-white p-4">
-            <div className="text-2xl font-extrabold text-ink">2</div>
+            <div className="text-2xl font-extrabold text-ink">{sourcesMonitored}</div>
             <div className="mt-1 text-xs text-gray-600">Sources monitored</div>
           </div>
         </div>
 
         <div className="mt-6">
-          <ReviewQueueTable initialArticles={reviewQueue} />
+          <ReviewQueueTable initialArticles={reviewQueue} usingLiveData={usingLiveData} />
         </div>
 
         <p className="mt-4 text-xs text-gray-400">
-          Approve/reject actions here are local-state only for this demo — wire them to real
-          PATCH/POST calls against the articles table (§10, §8.6) before launch.
+          {usingLiveData
+            ? "Approve/reject/edit actions here call the real articles table (§10, §8.6)."
+            : "No drafts in the database yet, so actions below only update local state for this demo — use the \"Trigger job\" button above (or POST /api/admin/trigger) to generate a draft and see it wired end to end."}
         </p>
       </main>
     </div>
