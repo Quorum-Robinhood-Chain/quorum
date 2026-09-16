@@ -1,7 +1,5 @@
 import { TokenRow } from "@/types";
 
-// Placeholder token rows — swap for a live fetch before launch.
-// Meme tokens kept in their own labeled group.
 export const trendingTokens: TokenRow[] = [
   {
     id: "tok-1",

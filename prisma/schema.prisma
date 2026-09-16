@@ -86,6 +86,9 @@ model Token {
   contractAddress String?
   dex             String?
   category        TokenCategory
+  // CoinGecko coin id (not the ticker). Lets a listed token get price + 24h change
+  // with no on-chain config — the only source that supplies price_change_24h.
+  coingeckoId     String?
   isTracked       Boolean       @default(true)
   createdAt       DateTime      @default(now())
 

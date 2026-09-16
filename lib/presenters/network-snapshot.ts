@@ -1,5 +1,5 @@
-import { prisma } from "@/lib/db/client";
-import { formatUsd, formatPct, timeAgo } from "@/lib/utils/format";
+import { prisma } from "@/lib/db";
+import { formatUsd, formatPct, timeAgo } from "@/lib/format";
 import { networkSnapshot as fallbackNetworkSnapshot } from "@/data/stats";
 import type { NetworkStat } from "@/types";
 

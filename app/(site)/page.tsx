@@ -4,6 +4,9 @@ import NewsList from "@/components/NewsList";
 import Sidebar from "@/components/Sidebar";
 import CtaBanner from "@/components/CtaBanner";
 
+// Live data on every request — never served from the build-time cache.
+export const dynamic = 'force-dynamic';
+
 export default function Home() {
   return (
     <main>

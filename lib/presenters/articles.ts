@@ -1,35 +1,18 @@
-import { prisma } from "@/lib/db/client";
-import { timeAgo } from "@/lib/utils/format";
+import { prisma } from "@/lib/db";
+import { timeAgo, estimateReadTime } from "@/lib/format";
 import { heroArticle, heroSideArticles, latestNews, marketCards } from "@/data/articles";
-import type { Article, ArticleCategory, SourceAttribution } from "@/types";
-
-const VALID_CATEGORIES: ArticleCategory[] = [
-  "Markets",
-  "Ecosystem",
-  "Tokens",
-  "Stock Tokens",
-  "Security",
-  "Learn",
-];
+import { ARTICLE_CATEGORIES, type Article, type ArticleCategory, type SourceAttribution } from "@/types";
 
 const VALID_SOURCE_NAMES: SourceAttribution["name"][] = ["BeInCrypto", "Coinfomania", "Quorum"];
 
 function toArticleCategory(raw: string): ArticleCategory {
-  return (VALID_CATEGORIES as string[]).includes(raw) ? (raw as ArticleCategory) : "Markets";
+  return ARTICLE_CATEGORIES.includes(raw as ArticleCategory) ? (raw as ArticleCategory) : "Markets";
 }
 
 function toSourceName(raw: string | undefined): SourceAttribution["name"] {
   return raw && (VALID_SOURCE_NAMES as string[]).includes(raw)
     ? (raw as SourceAttribution["name"])
     : "Quorum";
-}
-
-/** No separate `readTime` column — estimated from the dek at a slow, headline-style
- * words-per-minute so a one-line dek doesn't round down to "0 min read". */
-function estimateReadTime(text: string): string {
-  const words = text.trim().split(/\s+/).filter(Boolean).length;
-  const minutes = Math.max(1, Math.round(words / 40));
-  return `${minutes} min read`;
 }
 
 function dedupeById(list: Article[]): Article[] {

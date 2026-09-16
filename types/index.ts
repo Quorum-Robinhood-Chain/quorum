@@ -8,11 +8,18 @@ export type TickerItem = {
   isUp: boolean;
 };
 
-export type ArticleCategory =
-  | "Markets"
-  | "Ecosystem"
-  | "Tokens"
-  | "Stock Tokens"
+// Single source of truth for article categories — the array is reused for runtime
+// validation, the union for types. "Governance/Staking" deliberately absent (§2/§11).
+export const ARTICLE_CATEGORIES = [
+  "Markets",
+  "Ecosystem",
+  "Tokens",
+  "Stock Tokens",
+  "Security",
+  "Learn",
+] as const;
+
+export type ArticleCategory = (typeof ARTICLE_CATEGORIES)[number];
 
 
 export type SourceAttribution = {

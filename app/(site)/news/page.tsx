@@ -3,6 +3,9 @@ import NewsArchive from "@/components/NewsArchive";
 import { getArticlesPresentation } from "@/lib/presenters/articles";
 import { newsCategories } from "@/data/news";
 
+// Live data on every request — never served from the build-time cache.
+export const dynamic = 'force-dynamic';
+
 export const metadata: Metadata = {
   title: "News — Quorum",
   description:

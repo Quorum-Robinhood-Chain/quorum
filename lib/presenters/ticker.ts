@@ -1,5 +1,5 @@
-import { prisma } from "@/lib/db/client";
-import { formatUsd, formatPct } from "@/lib/utils/format";
+import { prisma } from "@/lib/db";
+import { formatUsd, formatPct } from "@/lib/format";
 import type { TickerItem } from "@/types";
 
 const TICKER_METRICS: Array<{ scope: string; metric: string; label: string; kind: "usd" | "pct" | "rank" }> = [
