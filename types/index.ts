@@ -13,8 +13,7 @@ export type ArticleCategory =
   | "Ecosystem"
   | "Tokens"
   | "Stock Tokens"
-  | "Security"
-  | "Learn";
+
 
 export type SourceAttribution = {
   name: "BeInCrypto" | "Coinfomania" | "Quorum";

@@ -9,20 +9,68 @@ const STATUS_STYLE: Record<ArticleStatus, string> = {
   published: "bg-ink text-lime",
 };
 
-// Local state only — wire to real PATCH/POST once backend exists.
-export default function ReviewQueueTable({ initialArticles }: { initialArticles: ReviewArticle[] }) {
+type Action = "review" | "publish" | "reject" | "edit";
+
+// When `usingLiveData` is true, every action PATCHes app/api/admin/review/[id]/route.ts (real
+// DB writes, §8.6). When false (no drafts generated yet — sample/placeholder queue), there's no
+// matching DB row to PATCH, so actions just update local state, same as the original demo.
+export default function ReviewQueueTable({
+  initialArticles,
+  usingLiveData = false,
+}: {
+  initialArticles: ReviewArticle[];
+  usingLiveData?: boolean;
+}) {
   const [articles, setArticles] = useState(initialArticles);
   const [expanded, setExpanded] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [draftHeadline, setDraftHeadline] = useState("");
   const [draftBody, setDraftBody] = useState("");
+  const [pendingId, setPendingId] = useState<string | null>(null);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  function advance(id: string, status: ArticleStatus) {
-    setArticles((prev) => prev.map((a) => (a.id === id ? { ...a, status } : a)));
+  function applyLocal(id: string, action: Action, extra?: { headline: string; body: string }) {
+    if (action === "reject") {
+      setArticles((prev) => prev.filter((a) => a.id !== id));
+      return;
+    }
+    setArticles((prev) =>
+      prev.map((a) => {
+        if (a.id !== id) return a;
+        if (action === "review") return { ...a, status: "reviewed" as ArticleStatus };
+        if (action === "publish") return { ...a, status: "published" as ArticleStatus };
+        if (action === "edit" && extra) {
+          return { ...a, headline: extra.headline, body: extra.body, edited: true };
+        }
+        return a;
+      }),
+    );
   }
 
-  function reject(id: string) {
-    setArticles((prev) => prev.filter((a) => a.id !== id));
+  async function mutate(id: string, action: Action, extra?: { headline: string; body: string }) {
+    if (!usingLiveData) {
+      applyLocal(id, action, extra);
+      return;
+    }
+
+    setPendingId(id);
+    setErrorMsg(null);
+    try {
+      const res = await fetch(`/api/admin/review/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action, ...extra }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => null);
+        throw new Error(data?.error ?? `Request failed (${res.status})`);
+      }
+      applyLocal(id, action, extra);
+    } catch (err) {
+      setErrorMsg((err as Error).message);
+    } finally {
+      setPendingId(null);
+    }
   }
 
   function startEdit(article: ReviewArticle) {
@@ -36,17 +84,18 @@ export default function ReviewQueueTable({ initialArticles }: { initialArticles:
     setEditingId(null);
   }
 
-  function saveEdit(id: string) {
-    setArticles((prev) =>
-      prev.map((a) =>
-        a.id === id ? { ...a, headline: draftHeadline, body: draftBody, edited: true } : a,
-      ),
-    );
+  async function saveEdit(id: string) {
+    await mutate(id, "edit", { headline: draftHeadline, body: draftBody });
     setEditingId(null);
   }
 
   return (
     <div className="overflow-hidden rounded-card border border-line bg-white">
+      {errorMsg && (
+        <div className="border-b border-line bg-red-50 px-4 py-2 text-xs font-semibold text-danger">
+          {errorMsg}
+        </div>
+      )}
       <table className="w-full border-collapse text-sm">
         <thead>
           <tr className="border-b border-line bg-panel text-left text-xs uppercase tracking-wide text-gray-600">
@@ -60,6 +109,7 @@ export default function ReviewQueueTable({ initialArticles }: { initialArticles:
         <tbody>
           {articles.map((article) => {
             const isEditing = editingId === article.id;
+            const isPending = pendingId === article.id;
             return (
               <Fragment key={article.id}>
                 <tr className="border-b border-line last:border-b-0">
@@ -97,31 +147,35 @@ export default function ReviewQueueTable({ initialArticles }: { initialArticles:
                       {article.status !== "published" && (
                         <button
                           onClick={() => startEdit(article)}
-                          className="rounded-lg border border-line px-2.5 py-1.5 text-xs font-semibold hover:bg-panel"
+                          disabled={isPending}
+                          className="rounded-lg border border-line px-2.5 py-1.5 text-xs font-semibold hover:bg-panel disabled:opacity-50"
                         >
                           Edit
                         </button>
                       )}
                       {article.status === "draft" && (
                         <button
-                          onClick={() => advance(article.id, "reviewed")}
-                          className="rounded-lg border border-line px-2.5 py-1.5 text-xs font-semibold hover:bg-panel"
+                          onClick={() => mutate(article.id, "review")}
+                          disabled={isPending}
+                          className="rounded-lg border border-line px-2.5 py-1.5 text-xs font-semibold hover:bg-panel disabled:opacity-50"
                         >
-                          Mark reviewed
+                          {isPending ? "Saving…" : "Mark reviewed"}
                         </button>
                       )}
                       {article.status !== "published" && (
                         <button
-                          onClick={() => advance(article.id, "published")}
-                          className="rounded-lg bg-ink px-2.5 py-1.5 text-xs font-bold text-lime hover:opacity-90"
+                          onClick={() => mutate(article.id, "publish")}
+                          disabled={isPending}
+                          className="rounded-lg bg-ink px-2.5 py-1.5 text-xs font-bold text-lime hover:opacity-90 disabled:opacity-50"
                         >
-                          Publish
+                          {isPending ? "Saving…" : "Publish"}
                         </button>
                       )}
                       {article.status !== "published" && (
                         <button
-                          onClick={() => reject(article.id)}
-                          className="rounded-lg px-2.5 py-1.5 text-xs font-semibold text-danger hover:bg-red-50"
+                          onClick={() => mutate(article.id, "reject")}
+                          disabled={isPending}
+                          className="rounded-lg px-2.5 py-1.5 text-xs font-semibold text-danger hover:bg-red-50 disabled:opacity-50"
                         >
                           Reject
                         </button>
@@ -174,14 +228,16 @@ export default function ReviewQueueTable({ initialArticles }: { initialArticles:
                             </button>
                             <button
                               onClick={() => saveEdit(article.id)}
-                              className="rounded-lg bg-ink px-3 py-1.5 text-xs font-bold text-lime hover:opacity-90"
+                              disabled={pendingId === article.id}
+                              className="rounded-lg bg-ink px-3 py-1.5 text-xs font-bold text-lime hover:opacity-90 disabled:opacity-50"
                             >
-                              Save changes
+                              {pendingId === article.id ? "Saving…" : "Save changes"}
                             </button>
                           </div>
                           <p className="text-xs text-gray-400">
-                            Saved locally for this demo — wire to a real PATCH against the
-                            articles table (§10, §8.6) before launch.
+                            {usingLiveData
+                              ? "Saved to the articles table via PATCH /api/admin/review/[id]."
+                              : "Sample data mode — saved locally only, no draft exists in the DB yet."}
                           </p>
                         </div>
                       ) : (

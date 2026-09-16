@@ -1,11 +1,16 @@
-import { NextRequest, NextResponse } from "next/server";
-import { ADMIN_SESSION_COOKIE, verifySessionToken } from "@/lib/admin-auth";
+import { NextRequest, NextResponse } from 'next/server';
+import { ADMIN_SESSION_COOKIE, verifySessionToken } from '@/lib/admin-auth';
 
-// Guards /admin routes (except /admin/login). Runs on Edge runtime.
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
-  if (pathname === "/admin/login") {
+  const isAuthRoute =
+    pathname === '/admin/login' ||
+    pathname === '/api/admin/login' ||
+    pathname === '/api/admin/logout' ||
+    pathname === '/api/admin/trigger';
+
+  if (isAuthRoute) {
     return NextResponse.next();
   }
 
@@ -13,8 +18,11 @@ export async function middleware(req: NextRequest) {
   const username = await verifySessionToken(token);
 
   if (!username) {
-    const loginUrl = new URL("/admin/login", req.url);
-    loginUrl.searchParams.set("next", pathname);
+    if (pathname.startsWith('/api/')) {
+      return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
+    }
+    const loginUrl = new URL('/admin/login', req.url);
+    loginUrl.searchParams.set('next', pathname);
     return NextResponse.redirect(loginUrl);
   }
 
@@ -22,5 +30,5 @@ export async function middleware(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/admin/:path*"],
+  matcher: ['/admin/:path*', '/api/admin/:path*'],
 };

@@ -50,6 +50,12 @@ export async function createSessionToken(username: string): Promise<string> {
   return `${payloadB64}.${sig}`;
 }
 
+/** Reads and verifies the admin session cookie from a NextRequest. Returns the username, or null. */
+export async function requireAdminSession(req: { cookies: { get(name: string): { value: string } | undefined } }): Promise<string | null> {
+  const token = req.cookies.get(ADMIN_SESSION_COOKIE)?.value;
+  return verifySessionToken(token);
+}
+
 /** Verifies a session token's signature and expiry. Returns the username, or null. */
 export async function verifySessionToken(token: string | undefined | null): Promise<string | null> {
   if (!token) return null;

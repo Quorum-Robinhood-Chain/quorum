@@ -1,6 +1,12 @@
-import { marketCards } from "@/data/articles";
+import { getArticlesPresentation } from "@/lib/presenters/articles";
 
-export default function MarketsSection() {
+// Homepage "Markets" card grid (bukan halaman /markets). Wired to the DB via
+// getArticlesPresentation — general recent published articles, same simplification the
+// original static data/articles.ts set used. Falls back to the static placeholder set if
+// nothing's live yet.
+export default async function MarketsSection() {
+  const { articles: marketCards } = await getArticlesPresentation({ limit: 3,  category: "Markets" });
+
   return (
     <section className="wrap" id="markets">
       <div className="section-head">

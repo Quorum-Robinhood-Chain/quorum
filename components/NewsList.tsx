@@ -1,6 +1,11 @@
-import { latestNews } from "@/data/articles";
+import { getArticlesPresentation } from "@/lib/presenters/articles";
 
-export default function NewsList() {
+// Homepage "Latest news" rail. Wired to the DB via getArticlesPresentation — general recent
+// published articles (no single category), same simplification the original static data/
+// articles.ts set used. Falls back to the static placeholder set if nothing's live yet.
+export default async function NewsList() {
+  const { articles: latestNews } = await getArticlesPresentation({ limit: 5 });
+
   return (
     <div className="main-col" id="news">
       <div className="section-head">

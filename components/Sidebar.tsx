@@ -1,8 +1,10 @@
 import { trending } from "@/data/articles";
-import { networkSnapshot } from "@/data/stats";
 import NewsletterForm from "@/components/NewsletterForm";
+import { getNetworkSnapshotPresentation } from "@/lib/presenters/networkSnapshot";
 
-export default function Sidebar() {
+export default async function Sidebar() {
+  const { items: networkSnapshot, updatedLabel } = await getNetworkSnapshotPresentation();
+
   return (
     <aside className="side-col">
       <div className="side-panel">
@@ -26,7 +28,7 @@ export default function Sidebar() {
             <span className={`val${stat.trend ? ` ${stat.trend}` : ""}`}>{stat.value}</span>
           </div>
         ))}
-        <p className="updated">Last updated moments ago · via DefiLlama, Morpho</p>
+        <p className="updated">{updatedLabel}</p>
       </div>
 
       <div className="side-panel newsletter-panel">
