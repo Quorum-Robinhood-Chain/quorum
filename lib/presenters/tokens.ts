@@ -1,12 +1,12 @@
-import { prisma } from "@/lib/db/client";
-import { formatUsd, formatPct } from "@/lib/utils/format";
-import { trendingTokens as fallbackTokens } from "@/data/tokens";
-import type { TokenCategory, TokenRow } from "@/types";
+import { prisma } from '@/lib/db';
+import { formatUsd, formatPct } from '@/lib/format';
+import { trendingTokens as fallbackTokens } from '@/data/tokens';
+import type { TokenCategory, TokenRow } from '@/types';
 
-const VALID_CATEGORIES: TokenCategory[] = ["stock_token", "defi", "meme"];
+const VALID_CATEGORIES: TokenCategory[] = ['stock_token', 'defi', 'meme'];
 
 function toTokenCategory(raw: string): TokenCategory {
-  return (VALID_CATEGORIES as string[]).includes(raw) ? (raw as TokenCategory) : "defi";
+  return (VALID_CATEGORIES as string[]).includes(raw) ? (raw as TokenCategory) : 'defi';
 }
 
 export interface TokensPresentation {
@@ -14,53 +14,80 @@ export interface TokensPresentation {
   usingLiveData: boolean;
 }
 
+interface Snapshot {
+  scope: string;
+  metric: string;
+  value: number;
+}
+
+/** Latest value per metric for one token scope. */
+function latestFor(snapshots: Snapshot[], symbol: string) {
+  const scope = `token:${symbol}`;
+  const pick = (metric: string) => snapshots.find((s) => s.scope === scope && s.metric === metric)?.value ?? null;
+
+  return { price: pick('price'), change: pick('price_change_24h'), volume: pick('volume_24h') };
+}
+
 /**
- * Reads tracked tokens + their latest price/volume snapshot from the DB. Used by
- * `app/api/tokens/route.ts` and directly by `TokensSection`/`MarketsOverview` (no self-fetch
- * over HTTP). Falls back to the static `data/tokens.ts` set whenever no tokens are seeded yet
- * or the DB isn't reachable.
+ * Tracked tokens joined to their latest market snapshot. Used by `/api/tokens` and directly
+ * by `TokensSection` (no self-fetch over HTTP).
+ *
+ * Rows are sorted by 24h volume, then price — the Tokens board is a "trending" view (§6.2),
+ * not a dump in insert order.
+ *
+ * Falls back to the sample set when the DB has no tokens, no numbers for any of them, or
+ * isn't reachable. A table of tokens where every column reads "—" is worse than clearly
+ * labelled sample data, and was what made this page look empty after a fresh seed.
  */
 export async function getTokensPresentation(): Promise<TokensPresentation> {
   try {
     const tokens = await prisma.token.findMany({ where: { isTracked: true } });
-    if (tokens.length === 0) {
+    if (tokens.length === 0) return { tokens: fallbackTokens, usingLiveData: false };
+
+    // One query, newest first; the first hit per (scope, metric) is the current value.
+    const rows = await prisma.marketSnapshot.findMany({
+      where: { scope: { startsWith: 'token:' } },
+      orderBy: { timestamp: 'desc' },
+      take: 500,
+    });
+
+    const seen = new Set<string>();
+    const snapshots: Snapshot[] = rows.filter((row) => {
+      const key = `${row.scope}:${row.metric}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+
+    const priced = tokens
+      .map((token) => {
+        const { price, change, volume } = latestFor(snapshots, token.symbol);
+
+        return {
+          hasData: price != null || volume != null,
+          sortKey: volume ?? price ?? 0,
+          row: {
+            id: token.id,
+            symbol: token.symbol,
+            name: token.name,
+            dex: token.dex ?? '—',
+            category: toTokenCategory(token.category),
+            price: price != null ? formatUsd(price) : '—',
+            change24h: change != null ? formatPct(change) : '—',
+            isUp: change == null || change >= 0,
+            volume24h: volume != null ? formatUsd(volume) : '—',
+          } satisfies TokenRow,
+        };
+      })
+      .sort((a, b) => b.sortKey - a.sortKey);
+
+    // Nothing has been priced yet — show the sample set rather than a wall of dashes.
+    if (!priced.some((t) => t.hasData)) {
       return { tokens: fallbackTokens, usingLiveData: false };
     }
 
-    const snapshots = await prisma.marketSnapshot.findMany({
-      where: { scope: { startsWith: "token:" } },
-      orderBy: { timestamp: "desc" },
-    });
-
-    const latestByScope = new Map<string, typeof snapshots>();
-    for (const s of snapshots) {
-      const arr = latestByScope.get(s.scope) ?? [];
-      if (!arr.find((x: any) => x.metric === s.metric)) arr.push(s);
-      latestByScope.set(s.scope, arr);
-    }
-
-    let anyLive = false;
-    const rows: TokenRow[] = tokens.map((t: any) => {
-      const scoped = latestByScope.get(`token:${t.symbol}`) ?? [];
-      const price = scoped.find((s: any) => s.metric === "price")?.value ?? null;
-      const change = scoped.find((s: any) => s.metric === "price_change_24h")?.value ?? null;
-      const volume = scoped.find((s: any) => s.metric === "volume_24h")?.value ?? null;
-      if (price != null || volume != null) anyLive = true;
-
-      return {
-        id: t.id,
-        symbol: t.symbol,
-        name: t.name,
-        dex: t.dex ?? "—",
-        category: toTokenCategory(t.category),
-        price: price != null ? formatUsd(price) : "—",
-        change24h: change != null ? formatPct(change) : "—",
-        isUp: change == null || change >= 0,
-        volume24h: volume != null ? formatUsd(volume) : "—",
-      };
-    });
-
-    return { tokens: rows, usingLiveData: anyLive };
+    // Drop tokens with no numbers at all: a tracked-but-unpriced row tells the reader nothing.
+    return { tokens: priced.filter((t) => t.hasData).map((t) => t.row), usingLiveData: true };
   } catch {
     return { tokens: fallbackTokens, usingLiveData: false };
   }

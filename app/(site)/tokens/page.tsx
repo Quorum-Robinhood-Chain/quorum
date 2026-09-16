@@ -1,6 +1,9 @@
 import type { Metadata } from "next";
 import TokensSection from "@/components/TokensSection";
 
+// Live data on every request — never served from the build-time cache.
+export const dynamic = 'force-dynamic';
+
 export const metadata: Metadata = {
   title: "Tokens — Quorum",
   description:

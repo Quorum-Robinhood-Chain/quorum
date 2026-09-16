@@ -1,6 +1,6 @@
 import { trending } from "@/data/articles";
 import NewsletterForm from "@/components/NewsletterForm";
-import { getNetworkSnapshotPresentation } from "@/lib/presenters/networkSnapshot";
+import { getNetworkSnapshotPresentation } from "@/lib/presenters/network-snapshot";
 
 export default async function Sidebar() {
   const { items: networkSnapshot, updatedLabel } = await getNetworkSnapshotPresentation();

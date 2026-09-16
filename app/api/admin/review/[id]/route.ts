@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/db/client";
-import { requireAdminSession } from "@/lib/admin-auth";
+import { prisma } from "@/lib/db";
+import { requireAdminSession } from "@/lib/auth/session";
 
 export const dynamic = "force-dynamic";
 

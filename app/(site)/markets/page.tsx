@@ -1,6 +1,9 @@
 import type { Metadata } from "next";
 import MarketsOverview from "@/components/MarketsOverview";
 
+// Live data on every request — never served from the build-time cache.
+export const dynamic = 'force-dynamic';
+
 export const metadata: Metadata = {
   title: "Markets — Quorum",
   description:

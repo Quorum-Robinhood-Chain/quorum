@@ -1,10 +1,13 @@
 import { cookies } from "next/headers";
-import { ADMIN_SESSION_COOKIE, verifySessionToken } from "@/lib/admin-auth";
-import { getReviewQueuePresentation } from "@/lib/presenters/reviewQueue";
-import { prisma } from "@/lib/db/client";
+import { ADMIN_SESSION_COOKIE, verifySessionToken } from "@/lib/auth/session";
+import { getReviewQueuePresentation } from "@/lib/presenters/review-queue";
+import { prisma } from "@/lib/db";
 import ReviewQueueTable from "@/components/admin/ReviewQueueTable";
 import LogoutButton from "@/components/admin/LogoutButton";
 import TriggerJobsButton from "@/components/admin/TriggerJobsButton";
+
+// Live data on every request — never served from the build-time cache.
+export const dynamic = 'force-dynamic';
 
 export default async function AdminDashboardPage() {
   const token = cookies().get(ADMIN_SESSION_COOKIE)?.value;

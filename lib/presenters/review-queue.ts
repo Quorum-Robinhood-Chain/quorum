@@ -1,5 +1,5 @@
-import { prisma } from "@/lib/db/client";
-import { timeAgo } from "@/lib/utils/format";
+import { prisma } from "@/lib/db";
+import { timeAgo } from "@/lib/format";
 import { reviewQueue as fallbackQueue } from "@/data/admin-review";
 import type { ReviewArticle } from "@/types";
 

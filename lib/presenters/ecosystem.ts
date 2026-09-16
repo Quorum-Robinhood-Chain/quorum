@@ -1,5 +1,5 @@
-import { prisma } from "@/lib/db/client";
-import { formatUsd } from "@/lib/utils/format";
+import { prisma } from "@/lib/db";
+import { formatUsd } from "@/lib/format";
 import { protocols as fallbackProtocols } from "@/data/ecosystem";
 import type { ProtocolRow } from "@/types";
 

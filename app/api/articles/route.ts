@@ -1,26 +1,17 @@
-import { NextRequest, NextResponse } from "next/server";
-import { getArticlesPresentation } from "@/lib/presenters/articles";
-import type { ArticleCategory } from "@/types";
+import { NextRequest, NextResponse } from 'next/server';
+import { getArticlesPresentation } from '@/lib/presenters/articles';
+import { ARTICLE_CATEGORIES, type ArticleCategory } from '@/types';
 
-export const dynamic = "force-dynamic";
-
-const VALID_CATEGORIES: ArticleCategory[] = [
-  "Markets",
-  "Ecosystem",
-  "Tokens",
-  "Stock Tokens",
-  "Security",
-  "Learn",
-];
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
 
 export async function GET(req: NextRequest) {
-  const categoryParam = req.nextUrl.searchParams.get("category");
-  const category =
-    categoryParam && (VALID_CATEGORIES as string[]).includes(categoryParam)
-      ? (categoryParam as ArticleCategory)
-      : undefined;
-  const limit = Math.min(Number(req.nextUrl.searchParams.get("limit") ?? 20), 50);
+  const raw = req.nextUrl.searchParams.get('category');
+  const category = ARTICLE_CATEGORIES.includes(raw as ArticleCategory)
+    ? (raw as ArticleCategory)
+    : undefined;
 
-  const { articles, usingLiveData } = await getArticlesPresentation({ category, limit });
-  return NextResponse.json({ articles, usingLiveData });
+  const limit = Math.min(Number(req.nextUrl.searchParams.get('limit') ?? 20) || 20, 50);
+
+  return NextResponse.json(await getArticlesPresentation({ category, limit }));
 }

@@ -1,6 +1,9 @@
 import type { Metadata } from "next";
 import EcosystemGrid from "@/components/EcosystemGrid";
 
+// Live data on every request — never served from the build-time cache.
+export const dynamic = 'force-dynamic';
+
 export const metadata: Metadata = {
   title: "Ecosystem — Quorum",
   description:

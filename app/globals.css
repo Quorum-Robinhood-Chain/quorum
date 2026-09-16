@@ -1,17 +1,28 @@
 @import "tailwindcss";
-@config "../tailwind.config.ts";
 
-/* Tailwind upgraded to v4 (Sept 2026). @config keeps using the existing
-   tailwind.config.ts (palette/fonts/content globs) as-is instead of
-   redoing it as a v4 @theme block — same theme tokens, just a newer
-   engine (Oxide/Lightning CSS) under the hood. See tailwind.config.ts
-   for why the two systems coexist.
+/* Tailwind v4 design tokens. Declared here (no tailwind.config.ts) so the utility
+   classes and the hand-written CSS below share one source of truth. */
+@theme {
+  --color-lime: #d2ff01;
+  --color-lime-tint: #f6fbe1;
+  --color-olive: #5c7300;
+  --color-ink: #0a0a0a;
+  --color-line: #e5e5e5; /* named "line" so it can't clash with border-* utilities */
+  --color-panel: #fafafa;
+  --color-danger: #b23b1f;
+  --color-gray-400: #a3a3a3;
+  --color-gray-600: #737373;
 
-   Everything below this line is the original hand-written design system
-   ported from the static mockup, used by the homepage components. Newer
-   UI (Tokens/Learn/Markets/Ecosystem/News sections, /admin) is built
-   with Tailwind utilities configured in tailwind.config.ts to match
-   these same tokens. */
+  --font-display: var(--font-big-shoulders), sans-serif;
+  --font-body: var(--font-public-sans), sans-serif;
+
+  --radius-card: 12px;
+  --container-site: 1240px;
+}
+
+/* Everything below is the original hand-written design system from the static mockup,
+   used by the homepage components. Newer UI (Tokens/Learn/Markets/Ecosystem/News, /admin)
+   uses Tailwind utilities built on the same tokens. */
 
 :root {
   --lime: #d2ff01;

@@ -1,5 +1,5 @@
 import { getArticlesPresentation } from '@/lib/presenters/articles';
-import { getNetworkSnapshotPresentation } from '@/lib/presenters/networkSnapshot';
+import { getNetworkSnapshotPresentation } from '@/lib/presenters/network-snapshot';
 
 export default async function MarketsOverview() {
   // Fetch market statistics and the latest market-related articles
