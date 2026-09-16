@@ -2,7 +2,7 @@ import { cookies } from 'next/headers';
 import { ADMIN_SESSION_COOKIE, verifySessionToken } from '@/lib/auth/session';
 import { getReviewQueuePresentation } from '@/lib/presenters/review-queue';
 import { prisma } from '@/lib/db';
-import ReviewQueueTable from '@/components/admin/ReviewQueueTable';
+import ReviewDashboard from '@/components/admin/ReviewDashboard';
 import LogoutButton from '@/components/admin/LogoutButton';
 import TriggerJobsButton from '@/components/admin/TriggerJobsButton';
 
@@ -27,18 +27,6 @@ export default async function AdminDashboardPage() {
       // Keep the default fallback value.
     }
   }
-
-  // Calculate summary statistics for the review dashboard.
-  const pending = reviewQueue.filter((a) => a.status === 'draft').length;
-  const publishedToday = reviewQueue.filter(
-    (a) => a.status === 'published',
-  ).length;
-  const automatedShare = reviewQueue.length
-    ? Math.round(
-        (reviewQueue.filter((a) => a.automated).length / reviewQueue.length) *
-          100,
-      )
-    : 0;
 
   return (
     <div className="min-h-screen">
@@ -106,44 +94,12 @@ export default async function AdminDashboardPage() {
           </span>
         )}
 
-        {/* Dashboard summary statistics */}
-        <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
-          <div className="rounded-card border border-line bg-white p-4">
-            <div className="text-2xl font-extrabold text-ink">{pending}</div>
-            <div className="mt-1 text-xs text-gray-600">Awaiting review</div>
-          </div>
-
-          <div className="rounded-card border border-line bg-white p-4">
-            <div className="text-2xl font-extrabold text-ink">
-              {publishedToday}
-            </div>
-            <div className="mt-1 text-xs text-gray-600">Published</div>
-          </div>
-
-          <div className="rounded-card border border-line bg-white p-4">
-            <div className="text-2xl font-extrabold text-ink">
-              {automatedShare}%
-            </div>
-            <div className="mt-1 text-xs text-gray-600">
-              Automated-generated
-            </div>
-          </div>
-
-          <div className="rounded-card border border-line bg-white p-4">
-            <div className="text-2xl font-extrabold text-ink">
-              {sourcesMonitored}
-            </div>
-            <div className="mt-1 text-xs text-gray-600">Sources monitored</div>
-          </div>
-        </div>
-
-        {/* Editorial review table */}
-        <div className="mt-6">
-          <ReviewQueueTable
-            initialArticles={reviewQueue}
-            usingLiveData={usingLiveData}
-          />
-        </div>
+        {/* Summary cards + review table, kept in sync client-side */}
+        <ReviewDashboard
+          initialArticles={reviewQueue}
+          usingLiveData={usingLiveData}
+          sourcesMonitored={sourcesMonitored}
+        />
 
         {/* Review queue status and demo information */}
         <p className="mt-4 text-xs text-gray-400">
