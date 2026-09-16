@@ -19,9 +19,9 @@ export default async function TokensSection() {
         </h2>
         <a
           className="text-[13.5px] font-semibold text-olive hover:underline"
-          href="/markets"
+          href="#"
         >
-          All market data
+          All token data
         </a>
       </div>
 
@@ -30,14 +30,6 @@ export default async function TokensSection() {
         <span className="mb-6 inline-block rounded-full bg-panel px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-gray-600">
           Sample data — live feed not connected yet
         </span>
-      )}
-
-      {/* Nothing tracked at all — say so instead of rendering an empty grid */}
-      {trendingTokens.length === 0 && (
-        <p className="rounded-card border border-line p-4.5 text-sm text-gray-600">
-          No tokens are being tracked yet. Seed the database (<code className="font-mono">npm run db:seed</code>)
-          and run the market refresh job.
-        </p>
       )}
 
       {/* Tokens grouped by category */}
@@ -52,11 +44,11 @@ export default async function TokensSection() {
                 {tokenCategoryLabels[category]}
               </h3>
 
-              <div className="divide-y divide-line rounded-card border border-line">
+              <div className="space-y-2.5">
                 {rows.map((token) => (
                   <div
                     key={token.id}
-                    className="flex items-center justify-between gap-3 p-3"
+                    className="flex items-center justify-between gap-3 rounded-card border border-line px-3.5 py-4"
                   >
                     <div className="min-w-0">
                       <div className="flex items-center gap-2">
