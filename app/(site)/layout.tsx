@@ -6,6 +6,11 @@ import SiteHeader from '@/components/SiteHeader';
 import SiteFooter from '@/components/SiteFooter';
 import { WalletProvider } from '@/lib/wallet/WalletProvider';
 
+// TickerBar renders on every page and queries the DB — cache it on the same
+// 60s window as the homepage so it doesn't force a per-request DB hit on
+// pages that would otherwise be statically served (e.g. /ecosystem).
+export const revalidate = 60;
+
 export const metadata: Metadata = {
   title: 'Quorum — News & market data for Robinhood Chain',
   description:

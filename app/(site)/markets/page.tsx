@@ -1,8 +1,9 @@
 import type { Metadata } from 'next';
 import MarketsOverview from '@/components/MarketsOverview';
 
-// Always fetch live market data on each request.
-export const dynamic = 'force-dynamic';
+// Market snapshots refresh every ~5 min (see cron.yml) — no need to hit
+// the DB on every single request.
+export const revalidate = 120;
 
 export const metadata: Metadata = {
   title: 'Markets — Quorum',

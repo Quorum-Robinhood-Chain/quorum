@@ -1,8 +1,9 @@
 import type { Metadata } from 'next';
 import EcosystemGrid from '@/components/EcosystemGrid';
 
-// Always fetch live ecosystem data on each request.
-export const dynamic = 'force-dynamic';
+// Protocol integrations and TVL change far less often than articles or
+// market snapshots — cache longer.
+export const revalidate = 300;
 
 export const metadata: Metadata = {
   title: 'Ecosystem — Quorum',

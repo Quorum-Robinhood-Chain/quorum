@@ -5,8 +5,12 @@ import { getArticleById } from '@/lib/presenters/articles';
 import { paragraphs } from '@/lib/format';
 import GatedArticleBody from '@/components/GatedArticleBody';
 
-// Always fetch the latest article data on each request.
-export const dynamic = 'force-dynamic';
+// Cache each article page for 30s. The actual gate check (wallet + $QUORUM
+// balance) never relies on this cache — it's re-verified server-side on every
+// call to /api/articles/[id] (force-dynamic, see that route). Worst case here
+// is the public/gated badge on this page lags the real 1-hour cutoff by up to
+// 30s, which is cosmetic, not a security boundary.
+export const revalidate = 30;
 
 export async function generateMetadata({
   params,
