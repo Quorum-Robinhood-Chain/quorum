@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
+import { Bot, Newspaper, Clock } from 'lucide-react';
 import { getArticleById } from '@/lib/presenters/articles';
 
 // Always fetch the latest article data on each request.
@@ -52,13 +53,66 @@ export default async function ArticlePage({
         )}
 
         {/* Article attribution and publication details */}
-        <div className="mt-4 flex flex-wrap items-center gap-x-2 border-b border-line pb-4 text-xs text-gray-400">
-          ...
+        <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-1 border-b border-line pb-4 text-xs text-gray-400">
+          <span className="flex items-center gap-1">
+            {article.automated ? (
+              <Bot
+                className="h-3.5 w-3.5"
+                strokeWidth={2.2}
+                aria-hidden="true"
+              />
+            ) : (
+              <Newspaper
+                className="h-3.5 w-3.5"
+                strokeWidth={2.2}
+                aria-hidden="true"
+              />
+            )}
+            {article.desk}
+          </span>
+
+          <span className="flex items-center gap-1">
+            <Clock
+              className="h-3.5 w-3.5"
+              strokeWidth={2.2}
+              aria-hidden="true"
+            />
+            {article.timeAgo}
+          </span>
+
+          {article.sourceNames.length > 0 && (
+            <span className="flex flex-wrap items-center gap-1">
+              via{' '}
+              {article.sourceNames.map((name, i) => (
+                <span key={`${name}-${i}`} className="flex items-center gap-1">
+                  {article.sourceUrls[i] ? (
+                    <a
+                      href={article.sourceUrls[i]}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="underline hover:text-gray-600"
+                    >
+                      {name}
+                    </a>
+                  ) : (
+                    name
+                  )}
+                  {i < article.sourceNames.length - 1 && ','}
+                </span>
+              ))}
+            </span>
+          )}
         </div>
 
         {/* Article body */}
         <div className="mt-6 space-y-4 text-[15px] leading-relaxed text-ink">
-          ...
+          {article.body
+            .split(/\n\s*\n/)
+            .map((paragraph) => paragraph.trim())
+            .filter(Boolean)
+            .map((paragraph, i) => (
+              <p key={i}>{paragraph}</p>
+            ))}
         </div>
 
         {/* Financial disclaimer */}

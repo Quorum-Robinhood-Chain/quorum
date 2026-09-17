@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
 import type { SearchResult } from '@/app/api/search/route';
+import ConnectWalletButton from '@/components/ConnectWalletButton';
 
 const RESULT_TYPE_LABELS: Record<SearchResult['type'], string> = {
   article: 'News',
@@ -237,10 +238,7 @@ export default function SiteHeader() {
             )}
           </div>
 
-          <a className="btn-connect" href="/#subscribe">
-            <span className="dot" />
-            <span className="label">Subscribe</span>
-          </a>
+          <ConnectWalletButton variant="header" />
 
           <button
             className="nav-toggle"

@@ -8,7 +8,10 @@ export function formatUsd(value: number): string {
   return `$${value.toFixed(2)}`;
 }
 
-export function formatPct(value: number, opts: { signed?: boolean } = {}): string {
+export function formatPct(
+  value: number,
+  opts: { signed?: boolean } = {},
+): string {
   const sign = opts.signed !== false && value > 0 ? '+' : '';
   return `${sign}${value.toFixed(1)}%`;
 }
@@ -25,6 +28,12 @@ export function timeAgo(date: Date): string {
 
   const days = Math.floor(hours / 24);
   return `${days} day${days === 1 ? '' : 's'} ago`;
+}
+
+// Shorten a checksummed wallet address for display, e.g. 0x1234…abCD.
+export function truncateAddress(address: string, chars = 4): string {
+  if (address.length <= chars * 2 + 2) return address;
+  return `${address.slice(0, chars + 2)}…${address.slice(-chars)}`;
 }
 
 // Rough read time from the dek — there's no dedicated column for it. */
