@@ -34,7 +34,7 @@ export async function chatCompletion(
     body: JSON.stringify({
       model,
       messages,
-      max_completion_tokens: options.maxTokens ?? 1200,
+      max_completion_tokens: options.maxTokens ?? 2000,
       temperature: options.temperature ?? 0.7,
       stream: false,
     }),
