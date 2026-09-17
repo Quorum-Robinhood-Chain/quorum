@@ -61,7 +61,10 @@ export interface ArticlesPresentation {
 
 // Fetch published articles and fall back to sample data when live data is unavailable.
 export async function getArticlesPresentation(
-  opts: { category?: ArticleCategory; limit?: number } = {},
+  opts: {
+    category?: ArticleCategory;
+    limit?: number;
+  } = {},
 ): Promise<ArticlesPresentation> {
   const limit = opts.limit ?? 20;
 
@@ -101,7 +104,10 @@ export async function getArticlesPresentation(
       gated: isGated(a.publishedAt ?? a.generatedAt),
     }));
 
-    return { articles, usingLiveData: true };
+    return {
+      articles,
+      usingLiveData: true,
+    };
   } catch {
     return {
       articles: fallbackSlice(opts.category, limit),
@@ -130,21 +136,37 @@ export interface HeroPresentation {
 
 // Fetch the latest articles and prepare the homepage hero layout.
 export async function getHeroPresentation(): Promise<HeroPresentation> {
+  // Ambil 8 artikel terbaru:
+  // 1 artikel untuk Hero utama
+  // 7 artikel untuk "Next on the network"
   const { articles, usingLiveData } = await getArticlesPresentation({
-    limit: 4,
+    limit: 7,
   });
 
+  // Jika database tidak memiliki artikel live,
+  // gunakan artikel fallback.
   if (!usingLiveData || articles.length === 0) {
     return {
       hero: heroArticle,
-      side: heroSideArticles,
+
+      // Maksimal 7 artikel di sisi kanan.
+      // Nomornya nanti otomatis menjadi 02 sampai 08
+      // di component Hero.tsx.
+      side: heroSideArticles.slice(0, 7),
+
       usingLiveData: false,
     };
   }
 
+  // Artikel pertama menjadi berita utama.
+  // Sisanya menjadi berita di sisi kanan.
   const [hero, ...side] = articles;
 
-  return { hero, side, usingLiveData: true };
+  return {
+    hero,
+    side,
+    usingLiveData: true,
+  };
 }
 
 export interface ArticleDetail {
@@ -152,9 +174,11 @@ export interface ArticleDetail {
   category: ArticleCategory;
   headline: string;
   dek: string;
+
   /** Empty string while gated — the body is deliberately withheld server-side,
    *  never shipped to the client and hidden behind a wallet check client-side. */
   body: string;
+
   desk: string;
   timeAgo: string;
   automated: boolean;
@@ -166,17 +190,19 @@ export interface ArticleDetail {
   requiredBalance: number;
 }
 
-// Fetch a published article by ID and return its presentation data. The body
-// is withheld while the article is still inside the gate window — callers that
-// need the real text once a wallet has been verified should use
-// `getGatedArticleBody` instead of trying to read `.body` off this result.
+// Fetch a published article by ID and return its presentation data.
+// The body is withheld while the article is still inside the gate window.
 export async function getArticleById(
   id: string,
 ): Promise<ArticleDetail | null> {
   try {
-    const a = await prisma.article.findUnique({ where: { id } });
+    const a = await prisma.article.findUnique({
+      where: { id },
+    });
 
-    if (!a || a.status !== 'published') return null;
+    if (!a || a.status !== 'published') {
+      return null;
+    }
 
     const publishedAt = a.publishedAt ?? a.generatedAt;
     const gated = isGated(publishedAt);
@@ -205,7 +231,10 @@ export async function getArticleById(
 }
 
 export type GatedBodyResult =
-  | { ok: true; body: string }
+  | {
+      ok: true;
+      body: string;
+    }
   | {
       ok: false;
       error:
@@ -219,34 +248,71 @@ export type GatedBodyResult =
       required?: number;
     };
 
-// Re-checks the gate server-side and returns the real article body only if the
-// address holds enough $QUORUM (or the article has aged out of the gate window
-// on its own). This is the only path that should ever return a gated body —
-// the client never receives it from any other route.
+// Re-checks the gate server-side and returns the real article body only if
+// the address holds enough $QUORUM or the article has aged out of the gate
+// window on its own.
 export async function getGatedArticleBody(
   id: string,
   address: string | null,
 ): Promise<GatedBodyResult> {
-  const a = await prisma.article.findUnique({ where: { id } });
-  if (!a || a.status !== 'published') return { ok: false, error: 'not_found' };
+  const a = await prisma.article.findUnique({
+    where: { id },
+  });
+
+  if (!a || a.status !== 'published') {
+    return {
+      ok: false,
+      error: 'not_found',
+    };
+  }
 
   const publishedAt = a.publishedAt ?? a.generatedAt;
-  if (!isGated(publishedAt)) return { ok: true, body: a.body };
 
-  if (!address) return { ok: false, error: 'no_address' };
+  if (!isGated(publishedAt)) {
+    return {
+      ok: true,
+      body: a.body,
+    };
+  }
+
+  if (!address) {
+    return {
+      ok: false,
+      error: 'no_address',
+    };
+  }
 
   const { checkQuorumBalance } = await import('@/lib/wallet/quorumToken');
+
   const result = await checkQuorumBalance(address);
 
   if (!result.ok) {
     if (result.reason === 'not_configured') {
-      return { ok: false, error: 'gate_not_configured', required: result.required };
+      return {
+        ok: false,
+        error: 'gate_not_configured',
+        required: result.required,
+      };
     }
+
     if (result.reason === 'rpc_error') {
-      return { ok: false, error: 'rpc_error', detail: result.detail, required: result.required };
+      return {
+        ok: false,
+        error: 'rpc_error',
+        detail: result.detail,
+        required: result.required,
+      };
     }
-    return { ok: false, error: 'insufficient_balance', required: result.required };
+
+    return {
+      ok: false,
+      error: 'insufficient_balance',
+      required: result.required,
+    };
   }
 
-  return { ok: true, body: a.body };
+  return {
+    ok: true,
+    body: a.body,
+  };
 }

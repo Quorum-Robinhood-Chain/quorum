@@ -131,7 +131,7 @@ export default async function ArticlePage({
             minutesUntilUnlock={article.minutesUntilUnlock}
           />
         ) : (
-          <div className="mt-6 space-y-7 text-[16px] leading-[1.75] text-ink">
+          <div className="mt-6 space-y-7 text-justify text-[16px] leading-[1.75] text-ink">
             {paragraphs(article.body).map((paragraph, i) => (
               <p key={i}>{paragraph}</p>
             ))}

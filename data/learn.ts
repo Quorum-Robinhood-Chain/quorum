@@ -7,6 +7,7 @@ export const learnGuides: LearnGuide[] = [
   {
     id: 'learn-1',
     title: 'What is Robinhood Chain? The basics, explained',
+    shortTitle: 'What Is Robinhood Chain?',
     dek: 'A permissionless, EVM-compatible Ethereum L2 (chain ID 4663) built on Arbitrum Orbit — what that actually means for users.',
     href: '/learn/learn-1',
     body: `Robinhood Chain is an Ethereum layer-2 network built using Arbitrum Orbit, which means it inherits Ethereum's security while settling transactions faster and cheaper than Ethereum's base layer. Its chain ID is 4663, and because it's EVM-compatible, any wallet or tool that works with Ethereum — MetaMask, Rabby, block explorers — works here too.
@@ -20,6 +21,7 @@ Where it gets used today is mostly around two things: Stock Tokens (tokenized ex
   {
     id: 'learn-2',
     title: 'Stock Tokens vs. owning the underlying stock',
+    shortTitle: 'Stock Tokens vs. Stocks',
     dek: 'Stock Tokens are ERC-20 instruments structured as debt securities that track US equities, settled in USDG — not direct equity ownership.',
     href: '/learn/learn-2',
     body: `A Stock Token is an ERC-20 token designed to track the price of a US-listed stock, priced by Chainlink oracle feeds and settled in USDG. What it is not is a share of the company — legally, it's structured as a debt security, meaning you hold a claim on the issuer that mirrors the stock's price, not equity in Apple, Tesla, or whichever company the token tracks.
@@ -33,6 +35,7 @@ If your goal is long-term ownership with shareholder rights, a traditional broke
   {
     id: 'learn-3',
     title: 'There\'s no "RHC" coin — here\'s how exposure actually works',
+    shortTitle: 'There\'s No "RHC" Coin',
     dek: "Robinhood Chain has no native governance token. Economic exposure to the chain runs through HOOD, Robinhood's Nasdaq-listed equity.",
     href: '/learn/learn-3',
     body: `A common question from people new to Robinhood Chain: "what's the token, and where do I buy it?" The honest answer is that there isn't one. Unlike most L2s and app-chains, Robinhood Chain doesn't have a native governance or utility token that trades on exchanges.
@@ -46,6 +49,7 @@ Worth flagging: token listings claiming to be "the Robinhood Chain token" that a
   {
     id: 'learn-4',
     title: 'How USDG lending on Morpho works',
+    shortTitle: 'USDG Lending on Morpho',
     dek: "A plain-language walkthrough of the lending pool that's become the go-to USDG market on Robinhood Chain.",
     href: '/learn/learn-4',
     body: `Morpho is a lending protocol, and on Robinhood Chain its USDG market has become the default place people go to earn yield on idle USDG or borrow against collateral. Mechanically, it works like most on-chain lending markets: depositors supply USDG into a pool, borrowers post collateral (often Stock Tokens or ETH) and draw USDG against it, and the interest borrowers pay flows to depositors as yield.

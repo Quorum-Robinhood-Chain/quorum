@@ -2,6 +2,7 @@
 
 import { Fragment, useState } from 'react';
 import { ReviewArticle, ArticleStatus } from '@/types';
+import { paragraphs } from '@/lib/format';
 
 const STATUS_STYLE: Record<ArticleStatus, string> = {
   published: 'bg-ink text-lime',
@@ -268,7 +269,11 @@ export default function ReviewQueueTable({
                         </div>
                       ) : (
                         <div className="flex flex-col gap-2 text-sm">
-                          <p className="text-gray-700">{article.body}</p>
+                          <div className="space-y-3 text-gray-700">
+                            {paragraphs(article.body).map((paragraph, i) => (
+                              <p key={i}>{paragraph}</p>
+                            ))}
+                          </div>
                           {article.flagged && article.flagReason && (
                             <p className="text-xs font-semibold text-amber-800">
                               Flag reason: {article.flagReason}
