@@ -1,21 +1,21 @@
-import type { Metadata } from "next";
-import TokensSection from "@/components/TokensSection";
+import type { Metadata } from 'next';
+import TokensSection from '@/components/TokensSection';
 
-// Live data on every request — never served from the build-time cache.
-export const dynamic = 'force-dynamic';
+// Token prices refresh on the same ~5 min market cycle (see cron.yml).
+export const revalidate = 120;
 
 export const metadata: Metadata = {
-  title: "Tokens — Quorum",
+  title: 'Tokens — Quorum',
   description:
-    "Trending Robinhood Chain tokens by 24h volume — Stock Tokens, DeFi, and memecoins, pulled from live market data.",
+    'Trending Robinhood Chain tokens by 24h volume — Stock Tokens, DeFi, and memecoins, pulled from live market data.',
 };
 
 export default function TokensPage() {
   return (
     <main>
       <div className="disclaimer-strip">
-        Not financial advice. Quorum is independent and not affiliated with Robinhood Markets,
-        Inc.
+        Not financial advice. Quorum is independent and not affiliated with
+        Robinhood Markets, Inc.
       </div>
       <TokensSection />
     </main>

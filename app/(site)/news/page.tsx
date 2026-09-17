@@ -3,8 +3,9 @@ import NewsArchive from '@/components/NewsArchive';
 import { getArticlesPresentation } from '@/lib/presenters/articles';
 import { newsCategories } from '@/data/news';
 
-// Always fetch live news data on each request.
-export const dynamic = 'force-dynamic';
+// Articles regenerate every ~30 min (see cron.yml) — cache for up to 60s
+// and revalidate in the background instead of hitting the DB every request.
+export const revalidate = 60;
 
 export const metadata: Metadata = {
   title: 'News — Quorum',

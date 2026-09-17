@@ -103,6 +103,11 @@ git push -u origin main
 New Project → import the repo. Framework preset detects Next.js; leave the build and output
 settings alone. **Don't deploy yet.**
 
+`vercel.json` pins Function region to `syd1` (Sydney) — set this to wherever your
+Postgres provider actually lives (check its dashboard) so functions don't round-trip
+to the database across the ocean on every request. Hobby plans can set a single
+region here same as Pro; only automatic multi-region failover is Enterprise-only.
+
 ### 4. Add environment variables before the first build
 
 Settings → Environment Variables. Add every key from `.env.example` for Production (and
@@ -143,28 +148,45 @@ badge, the response from that call lists exactly which provider failed and why.
 
 ### 7. Scheduled jobs
 
-Quorum is on Hobby, which only allows crons that run **once a day** — so `vercel.json`
-no longer registers any crons (an empty `crons` block would fail deploy the moment a
-schedule runs more than daily). Instead, `.github/workflows/cron.yml` triggers the same
-endpoints on the original cadence from GitHub Actions:
+Quorum is on Hobby, which only allows crons that run **once a day** and caps every
+function invocation at **10s** — so `vercel.json` no longer registers any crons, and
+`.github/workflows/cron.yml` runs the four jobs on their original cadence, split by
+how each one behaves:
 
-| Schedule | Path | Job |
+| Schedule | How it runs | Job |
 |---|---|---|
-| every 5 min | `/api/cron/market` | refresh market/on-chain snapshots |
-| every 20 min | `/api/cron/ingest` | poll news feeds + monitored X accounts (via Apify), filter for relevance |
-| every 30 min | `/api/cron/generate` | generate one draft, auto-published immediately |
-| Fridays 09:00 UTC | `/api/cron/weekly-digest` | weekly rollup |
+| every 5 min | curl → `/api/cron/market` | refresh market/on-chain snapshots |
+| every 20 min | curl → `/api/cron/ingest` | poll news feeds + monitored X accounts (via Apify), filter for relevance |
+| every 30 min | **directly on the runner** (`scripts/run-job.ts`) | generate one draft, auto-published immediately |
+| Fridays 09:00 UTC | **directly on the runner** (`scripts/run-job.ts`) | weekly rollup |
 
-Set two repo secrets in GitHub (Settings → Secrets and variables → Actions):
+`ingest` and `market` still go through the Vercel route — both are quick and stay
+comfortably under the 10s limit. `generate` and `weekly-digest` call the MiMo LLM API
+for up to ~1200 tokens, which routinely runs past 10s, so those two import `lib/jobs.ts`
+and run straight on the GitHub Actions runner instead — no function timeout to work
+around there at all (default job limit is 6h).
 
-- `SITE_URL` — your deployed URL, no trailing slash (e.g. `https://quorum.example.com`)
-- `CRON_TRIGGER_SECRET` — same value as the env var in Vercel
+Set these repo secrets in GitHub (Settings → Secrets and variables → Actions):
+
+- `SITE_URL` — your deployed URL, no trailing slash (e.g. `https://quorum.example.com`) — used by `ingest`/`market`
+- `CRON_TRIGGER_SECRET` — same value as the env var in Vercel — used by `ingest`/`market`
+- `DATABASE_URL`, `DIRECT_URL` — same pooled connection strings as Vercel — used by `generate`/`weekly-digest`
+- `MIMO_API_KEY`, `MIMO_BASE_URL`, `MIMO_MODEL` — same values as Vercel — used by `generate`/`weekly-digest`
+- `RHC_RPC_URL` — same value as Vercel (the `new_token_launches` template reads new pairs from chain RPC) — used by `generate`/`weekly-digest`
 
 `CRON_SECRET` (the Vercel-Cron-only secret) can stay blank since Vercel Cron isn't in use.
 
-**Watch the Hobby function duration limit too.** `generate` calls the MiMo LLM API and can
-run past Hobby's default function timeout regardless of who triggers it — if it starts
-timing out, that's the next thing to fix (shorter timeout budget, or upgrade to Pro).
+**Actions minutes on a private repo:** the free tier gives 2,000 min/month. `generate`
+running ~48x/day is the main consumer — the workflow caches npm dependencies to keep
+each run short. If usage ever gets close to the limit, drop `generate` to hourly, or
+make the repo public (unlimited Actions minutes; `.env` is already gitignored, so
+nothing secret would be exposed).
+
+You can also run any job locally the same way the runner does:
+
+```bash
+npm run job generate
+```
 
 Trigger any job manually from the Actions tab → "Quorum scheduled jobs" → **Run workflow**
 (pick a job from the dropdown), or with curl the same way:

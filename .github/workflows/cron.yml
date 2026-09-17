@@ -1,19 +1,45 @@
 name: Quorum scheduled jobs
 
 # Vercel Hobby only allows cron jobs that run once a day (see vercel.json — the
-# crons block was removed). This workflow replaces Vercel Cron: it hits the same
-# /api/cron/[job] endpoints on the original, more frequent schedule from outside
-# Vercel, authenticated with CRON_TRIGGER_SECRET (§ lib/auth/cron.ts).
+# crons block was removed) AND caps every function invocation at 10s. This
+# workflow replaces Vercel Cron entirely and splits jobs by how they behave:
+#
+#   ingest, market   → still call /api/cron/[job] on Vercel (job "trigger-http").
+#                       Both are quick (RSS/API polling, no LLM call) and have
+#                       no reason to need more than Vercel's 10s budget.
+#
+#   generate,        → run straight on this runner instead (job "run-direct"),
+#   weekly-digest      importing lib/jobs.ts directly via scripts/run-job.ts.
+#                       generate calls the MiMo LLM API for up to ~1200 tokens,
+#                       which routinely exceeds 10s — GitHub's runner has no
+#                       such limit (default 6h per job), so this is what
+#                       actually fixes the timeouts rather than working around
+#                       them.
 #
 # Required repo secrets (Settings → Secrets and variables → Actions):
-#   SITE_URL            e.g. https://quorum.example.com (no trailing slash)
-#   CRON_TRIGGER_SECRET  same value as CRON_TRIGGER_SECRET in Vercel env vars
+#   SITE_URL             e.g. https://quorum.example.com (no trailing slash) — used by ingest/market
+#   CRON_TRIGGER_SECRET  same value as CRON_TRIGGER_SECRET in Vercel env vars — used by ingest/market
+#   DATABASE_URL         same pooled (pgbouncer) connection string as Vercel   — used by generate/weekly-digest
+#   DIRECT_URL           same value as in Vercel                              — used by generate/weekly-digest
+#   MIMO_API_KEY         same value as in Vercel                              — used by generate/weekly-digest
+#   MIMO_BASE_URL        optional, same value as in Vercel if set             — used by generate/weekly-digest
+#   MIMO_MODEL           optional, same value as in Vercel if set             — used by generate/weekly-digest
+#   RHC_RPC_URL          same value as in Vercel (needed by the              — used by generate/weekly-digest
+#                        new_token_launches template's chain-rpc lookup)
 #
 # Note: GitHub's scheduler is best-effort — during high platform load, runs can be
 # delayed by several minutes (occasionally more). Fine for this use case, but don't
 # expect Vercel Cron-level punctuality. Also: GitHub auto-disables scheduled
 # workflows after 60 days with no repo activity — push anything to re-enable it,
 # or open the Actions tab and re-enable manually.
+#
+# Actions minutes: this repo is private, so the free tier gives 2,000 min/month.
+# generate runs ~48x/day — keep the "Cache npm dependencies" step in run-direct
+# in place, it's what keeps each run's install time low enough to stay well
+# under budget. If you ever get close to the limit, the easiest lever is
+# lowering generate's schedule below (e.g. every 60 min instead of 30), or
+# making the repo public (unlimited Actions minutes — .env is already
+# gitignored, so no real secret would be exposed by doing that).
 
 on:
   schedule:
@@ -35,8 +61,10 @@ on:
           - weekly-digest
 
 jobs:
-  trigger:
+  resolve:
     runs-on: ubuntu-latest
+    outputs:
+      job: ${{ steps.job.outputs.name }}
     steps:
       - name: Resolve which job this run is for
         id: job
@@ -49,7 +77,13 @@ jobs:
             *)              echo "name=${{ github.event.inputs.job }}" >> "$GITHUB_OUTPUT" ;;
           esac
 
-      - name: Call /api/cron/${{ steps.job.outputs.name }}
+  # Fast jobs — no LLM call, comfortably under Vercel's 10s function limit.
+  trigger-http:
+    needs: resolve
+    if: contains(fromJSON('["ingest", "market"]'), needs.resolve.outputs.job)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Call /api/cron/${{ needs.resolve.outputs.job }}
         run: |
           if [ -z "${{ secrets.SITE_URL }}" ] || [ -z "${{ secrets.CRON_TRIGGER_SECRET }}" ]; then
             echo "::error::Missing SITE_URL or CRON_TRIGGER_SECRET repo secret."
@@ -57,7 +91,7 @@ jobs:
           fi
 
           http_code=$(curl -s -o response.json -w "%{http_code}" \
-            -X GET "${{ secrets.SITE_URL }}/api/cron/${{ steps.job.outputs.name }}" \
+            -X GET "${{ secrets.SITE_URL }}/api/cron/${{ needs.resolve.outputs.job }}" \
             -H "x-cron-secret: ${{ secrets.CRON_TRIGGER_SECRET }}")
 
           echo "HTTP $http_code"
@@ -67,3 +101,48 @@ jobs:
             echo "::error::Cron endpoint returned HTTP $http_code"
             exit 1
           fi
+
+  # Slow job — calls the MiMo LLM API, runs here instead of on Vercel so a
+  # long model response can't get cut off at Hobby's 10s function timeout.
+  run-direct:
+    needs: resolve
+    if: contains(fromJSON('["generate", "weekly-digest"]'), needs.resolve.outputs.job)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      DIRECT_URL: ${{ secrets.DIRECT_URL }}
+      MIMO_API_KEY: ${{ secrets.MIMO_API_KEY }}
+      MIMO_BASE_URL: ${{ secrets.MIMO_BASE_URL }}
+      MIMO_MODEL: ${{ secrets.MIMO_MODEL }}
+      RHC_RPC_URL: ${{ secrets.RHC_RPC_URL }}
+    steps:
+      - name: Check required secrets
+        run: |
+          missing=()
+          [ -z "$DATABASE_URL" ] && missing+=(DATABASE_URL)
+          [ -z "$DIRECT_URL" ] && missing+=(DIRECT_URL)
+          [ -z "$MIMO_API_KEY" ] && missing+=(MIMO_API_KEY)
+          [ -z "$RHC_RPC_URL" ] && missing+=(RHC_RPC_URL)
+          if [ ${#missing[@]} -gt 0 ]; then
+            echo "::error::Missing repo secret(s): ${missing[*]}"
+            exit 1
+          fi
+
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      # Dependencies only — no `next build`, since this script never touches
+      # the Next.js app itself, only the shared lib/ modules.
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate Prisma client
+        run: npx prisma generate
+
+      - name: Run ${{ needs.resolve.outputs.job }}
+        run: npx tsx scripts/run-job.ts ${{ needs.resolve.outputs.job }}
