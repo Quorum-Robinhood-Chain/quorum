@@ -27,52 +27,48 @@ export default async function EcosystemGrid() {
         )}
       </div>
 
-      {/* Protocols grouped by category */}
-      <div className="grid gap-8 lg:grid-cols-3">
-        {protocolCategoryOrder.map((category) => {
-          const rows = protocols.filter((p) => p.category === category);
-          if (rows.length === 0) return null;
+      {/* Protocols — flat grid, 3 across / 2 down, category shown on each card */}
+      <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+        {protocolCategoryOrder
+          .flatMap((category) =>
+            protocols.filter((p) => p.category === category),
+          )
+          .map((protocol) => (
+            <div
+              key={protocol.id}
+              className="flex flex-col rounded-card border border-line p-4.5"
+            >
+              <div className="flex items-baseline justify-between gap-2">
+                <h3 className="font-display text-base font-bold text-ink">
+                  {protocol.name}
+                </h3>
+                <span className="shrink-0 text-sm font-semibold text-ink">
+                  {protocol.tvl}
+                </span>
+              </div>
 
-          return (
-            <div key={category}>
-              <h2 className="mb-3 text-[13px] font-bold uppercase tracking-wide text-olive">
-                {protocolCategoryLabels[category]}
-              </h2>
+              <p className="mt-1.5 text-sm leading-relaxed text-gray-600">
+                {protocol.description}
+              </p>
 
-              <div className="flex flex-col gap-3">
-                {rows.map((protocol) => (
-                  <div
-                    key={protocol.id}
-                    className="rounded-card border border-line p-4.5"
-                  >
-                    <div className="flex items-baseline justify-between gap-2">
-                      <h3 className="font-display text-base font-bold text-ink">
-                        {protocol.name}
-                      </h3>
-                      <span className="shrink-0 text-sm font-semibold text-ink">
-                        {protocol.tvl}
-                      </span>
-                    </div>
+              {protocol.change7d && (
+                <div
+                  className={`mt-2 text-xs font-semibold ${
+                    protocol.isUp ? 'text-olive' : 'text-danger'
+                  }`}
+                >
+                  {protocol.change7d} TVL · 7d
+                </div>
+              )}
 
-                    <p className="mt-1.5 text-sm leading-relaxed text-gray-600">
-                      {protocol.description}
-                    </p>
-
-                    {protocol.change7d && (
-                      <div
-                        className={`mt-2 text-xs font-semibold ${
-                          protocol.isUp ? 'text-olive' : 'text-danger'
-                        }`}
-                      >
-                        {protocol.change7d} TVL · 7d
-                      </div>
-                    )}
-                  </div>
-                ))}
+              {/* Category label anchored to bottom-left of the card */}
+              <div className="mt-auto pt-3">
+                <span className="inline-block rounded-full bg-panel px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-olive">
+                  {protocolCategoryLabels[protocol.category]}
+                </span>
               </div>
             </div>
-          );
-        })}
+          ))}
       </div>
 
       {/* Latest ecosystem news */}

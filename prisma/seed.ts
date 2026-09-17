@@ -20,7 +20,8 @@ const SOURCES = [
     name: 'Coinfomania',
     url: 'https://coinfomania.com',
     feedUrl: process.env.COINFOMANIA_FEED_URL || null,
-    tosNotes: 'Confirm robots.txt + ToS before enabling (§7.1, §17). Filter for Robinhood mentions.',
+    tosNotes:
+      'Confirm robots.txt + ToS before enabling (§7.1, §17). Filter for Robinhood mentions.',
   },
 ];
 
@@ -60,6 +61,41 @@ const TOKENS = [
   {
     symbol: 'GOOGLx',
     name: 'Alphabet Stock Token',
+    dex: 'Stock Token',
+    category: 'stock_token',
+    coingeckoId: null,
+  },
+  {
+    symbol: 'HOODx',
+    name: 'Robinhood Stock Token',
+    dex: 'Stock Token',
+    category: 'stock_token',
+    coingeckoId: null,
+  },
+  {
+    symbol: 'AMZNx',
+    name: 'Amazon Stock Token',
+    dex: 'Stock Token',
+    category: 'stock_token',
+    coingeckoId: null,
+  },
+  {
+    symbol: 'METAx',
+    name: 'Meta Stock Token',
+    dex: 'Stock Token',
+    category: 'stock_token',
+    coingeckoId: null,
+  },
+  {
+    symbol: 'COINx',
+    name: 'Coinbase Stock Token',
+    dex: 'Stock Token',
+    category: 'stock_token',
+    coingeckoId: null,
+  },
+  {
+    symbol: 'AMDx',
+    name: 'AMD Stock Token',
     dex: 'Stock Token',
     category: 'stock_token',
     coingeckoId: null,
@@ -107,39 +143,39 @@ const TOKENS = [
     coingeckoId: null,
   },
   {
-    symbol: 'CASHCAT',
-    name: 'CashCat',
+    symbol: 'AAVE',
+    name: 'Aave',
     dex: 'Uniswap',
-    category: 'meme',
-    coingeckoId: null,
+    category: 'defi',
+    coingeckoId: 'aave',
   },
   {
-    symbol: 'DADDY',
-    name: 'Daddy Coin',
-    dex: '1inch',
-    category: 'meme',
-    coingeckoId: null,
-  },
-  {
-    symbol: 'MOONPUP',
-    name: 'Moon Pup',
+    symbol: 'wBTC',
+    name: 'Wrapped Bitcoin (bridged)',
     dex: 'Uniswap',
-    category: 'meme',
-    coingeckoId: null,
+    category: 'defi',
+    coingeckoId: 'wrapped-bitcoin',
   },
   {
-    symbol: 'WOJAK',
-    name: 'Wojak',
-    dex: '1inch',
-    category: 'meme',
-    coingeckoId: null,
+    symbol: 'wETH',
+    name: 'Wrapped Ether (bridged)',
+    dex: 'Uniswap',
+    category: 'defi',
+    coingeckoId: 'weth',
   },
   {
-    symbol: 'RHDOGE',
-    name: 'Robinhood Doge',
-    dex: 'Arcus',
-    category: 'meme',
-    coingeckoId: null,
+    symbol: 'CRV',
+    name: 'Curve DAO Token',
+    dex: 'Uniswap',
+    category: 'defi',
+    coingeckoId: 'curve-dao-token',
+  },
+  {
+    symbol: 'COMP',
+    name: 'Compound',
+    dex: 'Uniswap',
+    category: 'defi',
+    coingeckoId: 'compound-governance-token',
   },
 ] as const;
 
@@ -153,9 +189,14 @@ async function main() {
   }
 
   for (const token of TOKENS) {
-    const existing = await prisma.token.findFirst({ where: { symbol: token.symbol } });
+    const existing = await prisma.token.findFirst({
+      where: { symbol: token.symbol },
+    });
     if (existing) {
-      await prisma.token.update({ where: { id: existing.id }, data: { coingeckoId: token.coingeckoId } });
+      await prisma.token.update({
+        where: { id: existing.id },
+        data: { coingeckoId: token.coingeckoId },
+      });
     } else {
       await prisma.token.create({ data: { ...token } });
     }
@@ -168,7 +209,9 @@ async function main() {
     create: { username, name: 'Admin', role: 'editor' },
   });
 
-  console.log(`Seed complete: ${SOURCES.length} sources, ${TOKENS.length} tokens, 1 editor.`);
+  console.log(
+    `Seed complete: ${SOURCES.length} sources, ${TOKENS.length} tokens, 1 editor.`,
+  );
 }
 
 main()
