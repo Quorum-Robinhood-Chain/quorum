@@ -12,8 +12,10 @@ export interface ReviewQueuePresentation {
 export async function getReviewQueuePresentation(): Promise<ReviewQueuePresentation> {
   try {
     const rows = await prisma.article.findMany({
-      where: { status: { in: ['draft', 'reviewed', 'published'] } },
-      orderBy: { generatedAt: 'desc' },
+      where: { status: { in: ['published', 'unpublished'] } },
+      // Flagged drafts surface first so an admin sees anything that needs a
+      // look before scrolling past everything already fine.
+      orderBy: [{ flagged: 'desc' }, { generatedAt: 'desc' }],
       take: 100,
       include: { reviewer: true },
     });
@@ -33,6 +35,8 @@ export async function getReviewQueuePresentation(): Promise<ReviewQueuePresentat
       status: a.status,
       automated: a.automated,
       edited: a.edited,
+      flagged: a.flagged,
+      flagReason: a.flagReason,
       sources: a.sourceNames,
       generationInputs: a.generationInputs,
       generatedAt: timeAgo(a.generatedAt),

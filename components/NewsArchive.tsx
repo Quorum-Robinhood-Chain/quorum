@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
+import { Lock } from 'lucide-react';
 import { ArticleCategory, Article } from '@/types';
 import { CategoryThumb } from '@/lib/categoryVisual';
 
@@ -69,9 +70,17 @@ export default function NewsArchive({
             />
 
             <div className="min-w-0 flex-1">
-              <span className="text-[11px] font-bold uppercase tracking-wide text-olive">
-                {article.category}
-              </span>
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-[11px] font-bold uppercase tracking-wide text-olive">
+                  {article.category}
+                </span>
+                {article.gated && (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-lime-tint px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-olive">
+                    <Lock className="h-2.5 w-2.5" strokeWidth={2.5} aria-hidden="true" />
+                    Holder-only
+                  </span>
+                )}
+              </div>
 
               <h3 className="mt-1 text-[16px] font-bold leading-snug text-ink">
                 {article.headline}

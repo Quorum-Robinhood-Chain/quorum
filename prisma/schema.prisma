@@ -18,21 +18,26 @@ datasource db {
 // ── Editorial / news sources (§7.1) ────────────────────────────────────────
 model Source {
   id               String    @id @default(cuid())
-  name             String    @unique // "BeInCrypto" | "Coinfomania"
+  name             String    @unique // "BeInCrypto" | "Coinfomania" | "X: @handle"
   url              String
   type             SourceType @default(news)
   feedUrl          String?   // RSS/Atom URL if one exists — confirm before enabling
+  handle           String?   // X/Twitter handle (no "@"), for type: social sources only
   pollingIntervalMinutes Int @default(20)
   robotsCheckedAt  DateTime?
   tosNotes         String?
   enabled          Boolean   @default(true)
   createdAt        DateTime  @default(now())
   rawItems         RawItem[]
+
+  @@index([type, handle])
 }
 
 enum SourceType {
   news
   api
+  social // monitored X/Twitter accounts (§ social_pulse template) — raw material for
+         // MiMo, never shown to readers as a standalone "tweet" item
 }
 
 // ── Raw ingested items before/after relevance filtering (§7.1, §8.2) ──────
@@ -103,6 +108,11 @@ enum TokenCategory {
 }
 
 // ── Generated / curated articles (§10, §8.6) ───────────────────────────────
+// Auto-publish model: an automated draft goes live the moment it's generated
+// (no human-in-the-loop gate before publish). Quality control is a fast-follow
+// safety net instead of a front gate: `flagged` marks a draft for admin
+// attention without pulling it, `status: unpublished` is the emergency
+// takedown an admin can apply (and reverse) at any time.
 model Article {
   id               String        @id @default(cuid())
   templateType     String        // one of the §6.2 rotation templates
@@ -115,22 +125,22 @@ model Article {
   sourceNames      String[]      // e.g. ["DefiLlama", "Arcus subgraph"] or ["BeInCrypto"]
   sourceUrls       String[]
   generationInputs String[]      // audit trail: which snippets/snapshots this was built from (§12)
-  status           ArticleStatus @default(draft)
-  reviewerId       String?
+  status           ArticleStatus @default(published)
+  flagged          Boolean       @default(false) // auto- or admin-flagged for quality review; stays live
+  flagReason       String?
+  reviewerId       String?       // last admin to flag/unflag/unpublish/republish/edit this article
   reviewer         Editor?       @relation(fields: [reviewerId], references: [id])
   generatedAt      DateTime      @default(now())
-  reviewedAt       DateTime?
-  publishedAt      DateTime?
+  publishedAt      DateTime?     // set at creation for automated articles; drives the 1-hour token gate
+  unpublishedAt    DateTime?
 
   @@index([status, generatedAt])
   @@index([category, publishedAt])
 }
 
 enum ArticleStatus {
-  draft
-  reviewed
   published
-  rejected
+  unpublished
 }
 
 // ── Editors (§10) ───────────────────────────────────────────────────────────

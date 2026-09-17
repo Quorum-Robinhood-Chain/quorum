@@ -1082,6 +1082,20 @@ nav.primary.open {
   flex: 0 0 auto;
   color: var(--gray-400);
 }
+/* Holder-only badge: reuses meta-bit layout but in the lime accent so a
+   gated story reads as "special", not as an error/warning state. */
+.gated-badge {
+  color: var(--lime);
+  font-weight: 800;
+}
+.gated-badge .meta-icon {
+  color: var(--lime);
+}
+.gated-badge + .meta-bit::before {
+  content: "\00b7";
+  margin-right: 4px;
+  color: var(--gray-400);
+}
 
 /* Sidebar */
 .side-panel {

@@ -18,7 +18,7 @@ export default function ReviewDashboard({
 }) {
   const [articles, setArticles] = useState(initialArticles);
 
-  const pending = articles.filter((a) => a.status === 'draft').length;
+  const flagged = articles.filter((a) => a.flagged).length;
   const published = articles.filter((a) => a.status === 'published').length;
   const automatedShare = articles.length
     ? Math.round(
@@ -31,8 +31,8 @@ export default function ReviewDashboard({
       {/* Dashboard summary statistics */}
       <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
         <div className="rounded-card border border-line bg-white p-4">
-          <div className="text-2xl font-extrabold text-ink">{pending}</div>
-          <div className="mt-1 text-xs text-gray-600">Awaiting review</div>
+          <div className="text-2xl font-extrabold text-ink">{flagged}</div>
+          <div className="mt-1 text-xs text-gray-600">Flagged for review</div>
         </div>
 
         <div className="rounded-card border border-line bg-white p-4">

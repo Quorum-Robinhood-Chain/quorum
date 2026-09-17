@@ -4,15 +4,11 @@ import { Fragment, useState } from 'react';
 import { ReviewArticle, ArticleStatus } from '@/types';
 
 const STATUS_STYLE: Record<ArticleStatus, string> = {
-  draft: 'bg-lime-tint text-olive',
-  reviewed: 'bg-panel text-gray-600 border border-line',
   published: 'bg-ink text-lime',
+  unpublished: 'bg-panel text-danger border border-line',
 };
 
-// Forward-only progression — an article can never move back a stage.
-const STATUS_ORDER: ArticleStatus[] = ['draft', 'reviewed', 'published'];
-
-type Action = 'review' | 'publish' | 'reject' | 'edit';
+type Action = 'edit' | 'flag' | 'unflag' | 'unpublish' | 'republish';
 
 export default function ReviewQueueTable({
   articles,
@@ -38,17 +34,16 @@ export default function ReviewQueueTable({
     action: Action,
     extra?: { headline: string; body: string },
   ) {
-    if (action === 'reject') {
-      onArticlesChange((prev) => prev.filter((a) => a.id !== id));
-      return;
-    }
-
     onArticlesChange((prev) =>
       prev.map((a) => {
         if (a.id !== id) return a;
-        if (action === 'review')
-          return { ...a, status: 'reviewed' as ArticleStatus };
-        if (action === 'publish')
+        if (action === 'flag')
+          return { ...a, flagged: true, flagReason: 'flagged by admin' };
+        if (action === 'unflag')
+          return { ...a, flagged: false, flagReason: null };
+        if (action === 'unpublish')
+          return { ...a, status: 'unpublished' as ArticleStatus };
+        if (action === 'republish')
           return { ...a, status: 'published' as ArticleStatus };
         if (action === 'edit' && extra) {
           return {
@@ -97,20 +92,6 @@ export default function ReviewQueueTable({
     }
   }
 
-  // Handle a status-dropdown change, refusing any backward move.
-  function handleStatusChange(article: ReviewArticle, next: ArticleStatus) {
-    const currentIndex = STATUS_ORDER.indexOf(article.status);
-    const nextIndex = STATUS_ORDER.indexOf(next);
-
-    if (nextIndex <= currentIndex) return; // no-op / blocked regression
-
-    if (next === 'reviewed') {
-      mutate(article.id, 'review');
-    } else if (next === 'published') {
-      mutate(article.id, 'publish');
-    }
-  }
-
   // Populate the edit form with the selected article.
   function startEdit(article: ReviewArticle) {
     setEditingId(article.id);
@@ -154,7 +135,6 @@ export default function ReviewQueueTable({
           {articles.map((article) => {
             const isEditing = editingId === article.id;
             const isPending = pendingId === article.id;
-            const currentIndex = STATUS_ORDER.indexOf(article.status);
 
             return (
               <Fragment key={article.id}>
@@ -175,34 +155,21 @@ export default function ReviewQueueTable({
                         Edited
                       </span>
                     )}
+                    {article.flagged && (
+                      <span className="ml-2 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-800">
+                        Flagged
+                      </span>
+                    )}
                   </td>
                   <td className="px-4 py-3 text-gray-600">
                     {article.templateType}
                   </td>
                   <td className="px-4 py-3">
-                    {/* Status can only move forward: draft -> reviewed -> published. */}
-                    <select
-                      value={article.status}
-                      disabled={isPending}
-                      onChange={(e) =>
-                        handleStatusChange(
-                          article,
-                          e.target.value as ArticleStatus,
-                        )
-                      }
-                      aria-label={`Change status for ${article.headline}`}
-                      className={`rounded-full px-2 py-1 text-xs font-semibold capitalize outline-none disabled:opacity-50 ${STATUS_STYLE[article.status]}`}
+                    <span
+                      className={`rounded-full px-2 py-1 text-xs font-semibold capitalize ${STATUS_STYLE[article.status]}`}
                     >
-                      {STATUS_ORDER.map((status, index) => (
-                        <option
-                          key={status}
-                          value={status}
-                          disabled={index < currentIndex}
-                        >
-                          {status}
-                        </option>
-                      ))}
-                    </select>
+                      {article.status}
+                    </span>
                   </td>
                   <td className="px-4 py-3 text-gray-600">
                     {article.generatedAt}
@@ -217,14 +184,46 @@ export default function ReviewQueueTable({
                       >
                         Edit
                       </button>
-                      <button
-                        type="button"
-                        disabled={isPending}
-                        onClick={() => mutate(article.id, 'reject')}
-                        className="rounded-full border border-line px-3 py-1 text-xs font-semibold text-danger hover:bg-red-50 disabled:opacity-50"
-                      >
-                        Reject
-                      </button>
+
+                      {article.flagged ? (
+                        <button
+                          type="button"
+                          disabled={isPending}
+                          onClick={() => mutate(article.id, 'unflag')}
+                          className="rounded-full border border-line px-3 py-1 text-xs font-semibold hover:bg-panel disabled:opacity-50"
+                        >
+                          Unflag
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          disabled={isPending}
+                          onClick={() => mutate(article.id, 'flag')}
+                          className="rounded-full border border-line px-3 py-1 text-xs font-semibold hover:bg-panel disabled:opacity-50"
+                        >
+                          Flag
+                        </button>
+                      )}
+
+                      {article.status === 'published' ? (
+                        <button
+                          type="button"
+                          disabled={isPending}
+                          onClick={() => mutate(article.id, 'unpublish')}
+                          className="rounded-full border border-line px-3 py-1 text-xs font-semibold text-danger hover:bg-red-50 disabled:opacity-50"
+                        >
+                          Unpublish
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          disabled={isPending}
+                          onClick={() => mutate(article.id, 'republish')}
+                          className="rounded-full bg-ink px-3 py-1 text-xs font-semibold text-lime hover:opacity-90 disabled:opacity-50"
+                        >
+                          Republish
+                        </button>
+                      )}
                     </div>
                   </td>
                 </tr>
@@ -270,6 +269,11 @@ export default function ReviewQueueTable({
                       ) : (
                         <div className="flex flex-col gap-2 text-sm">
                           <p className="text-gray-700">{article.body}</p>
+                          {article.flagged && article.flagReason && (
+                            <p className="text-xs font-semibold text-amber-800">
+                              Flag reason: {article.flagReason}
+                            </p>
+                          )}
                           <div>
                             <span className="text-xs font-semibold uppercase tracking-wide text-gray-500">
                               Sources:{' '}
@@ -290,7 +294,7 @@ export default function ReviewQueueTable({
                           </div>
                           {article.reviewerId && (
                             <p className="text-xs text-gray-500">
-                              Reviewed by {article.reviewerId}
+                              Last touched by {article.reviewerId}
                             </p>
                           )}
                         </div>

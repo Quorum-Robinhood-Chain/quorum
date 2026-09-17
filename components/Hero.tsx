@@ -1,3 +1,4 @@
+import { Lock } from 'lucide-react';
 import { getHeroPresentation } from '@/lib/presenters/articles';
 
 // Fetch the hero article and supporting side stories.
@@ -16,6 +17,16 @@ export default async function Hero() {
           </span>{' '}
           {heroArticle.automated && (
             <span className="badge automated">Automated summary</span>
+          )}{' '}
+          {heroArticle.gated && (
+            <span className="badge automated" style={{ color: 'var(--lime)' }}>
+              <Lock
+                style={{ width: 11, height: 11 }}
+                strokeWidth={2.5}
+                aria-hidden="true"
+              />
+              Holder-only
+            </span>
           )}
           {/* Hero article details */}
           <div className="hero-lead">
@@ -90,6 +101,28 @@ export default async function Hero() {
                 <h3>{article.headline}</h3>
                 <span className="tag">
                   {article.category} · {article.timeAgo}
+                  {article.gated && (
+                    <>
+                      {' '}
+                      ·{' '}
+                      <span
+                        style={{
+                          color: 'var(--lime)',
+                          fontWeight: 800,
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: 3,
+                        }}
+                      >
+                        <Lock
+                          style={{ width: 10, height: 10 }}
+                          strokeWidth={2.5}
+                          aria-hidden="true"
+                        />
+                        Holder-only
+                      </span>
+                    </>
+                  )}
                 </span>
               </div>
             </a>

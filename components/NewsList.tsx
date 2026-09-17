@@ -1,4 +1,4 @@
-import { Clock, Newspaper, Timer, Bot } from 'lucide-react';
+import { Clock, Newspaper, Timer, Bot, Lock } from 'lucide-react';
 import { getArticlesPresentation } from '@/lib/presenters/articles';
 import { CategoryThumb, CategoryIcon } from '@/lib/categoryVisual';
 
@@ -28,6 +28,12 @@ export default async function NewsList() {
             <h3>{article.headline}</h3>
             <p>{article.dek}</p>
             <span className="meta">
+              {article.gated && (
+                <span className="meta-bit gated-badge">
+                  <Lock className="meta-icon" strokeWidth={2.2} aria-hidden="true" />
+                  Holder-only
+                </span>
+              )}
               <span className="meta-bit">
                 {article.automated ? (
                   <Bot

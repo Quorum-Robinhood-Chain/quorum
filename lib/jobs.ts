@@ -1,4 +1,5 @@
 import { ingestAllSources } from '@/lib/sources/ingest';
+import { ingestApifyPosts } from '@/lib/sources/apify-ingest';
 import { refreshMarketData } from '@/lib/market/refresh';
 import { generateArticle } from '@/lib/llm/generate';
 import type { TemplateType } from '@/lib/llm/prompts';
@@ -13,8 +14,13 @@ export function isJobName(value: unknown): value is JobName {
 
 export async function runJob(job: JobName, forceTemplate?: TemplateType) {
   switch (job) {
-    case 'ingest':
-      return ingestAllSources();
+    case 'ingest': {
+      // RSS sites and monitored X accounts (scraped via Apify) on the same 20-min
+      // cadence, both landing in raw_items — X posts are just tagged with a `social`
+      // Source (§ apify-ingest.ts).
+      const [rss, x] = await Promise.all([ingestAllSources(), ingestApifyPosts()]);
+      return { rss, x };
+    }
     case 'market':
       return refreshMarketData();
     case 'generate':
