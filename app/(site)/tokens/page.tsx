@@ -7,7 +7,7 @@ export const revalidate = 120;
 export const metadata: Metadata = {
   title: 'Tokens — Quorum',
   description:
-    'Trending Robinhood Chain tokens by 24h volume — Stock Tokens, DeFi, and memecoins, pulled from live market data.',
+    'Trending Robinhood Chain tokens by 24h volume — Stock Tokens and DeFi, pulled from live market data.',
 };
 
 export default function TokensPage() {

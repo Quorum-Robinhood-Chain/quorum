@@ -2,7 +2,7 @@ import { getTokensPresentation } from '@/lib/presenters/tokens';
 import { tokenCategoryLabels } from '@/data/tokens';
 import { TokenCategory } from '@/types';
 
-const CATEGORY_ORDER: TokenCategory[] = ['stock_token', 'defi', 'meme'];
+const CATEGORY_ORDER: TokenCategory[] = ['stock_token', 'defi'];
 
 export default async function TokensSection() {
   // Fetch token data and live feed status
@@ -10,8 +10,8 @@ export default async function TokensSection() {
     await getTokensPresentation();
 
   return (
-    // Add bottom padding to prevent content from touching the footer
-    <section className="mx-auto max-w-site px-6 pb-12" id="tokens">
+    // Full-bleed: no max-w-site here, the section runs edge to edge.
+    <section className="w-full px-6 pb-12 lg:px-10" id="tokens">
       {/* Tokens section header */}
       <div className="flex items-baseline justify-between border-b-2 border-ink pb-4.5 pt-9 mb-6">
         <h2 className="font-display text-2xl font-extrabold text-ink">
@@ -32,8 +32,8 @@ export default async function TokensSection() {
         </span>
       )}
 
-      {/* Tokens grouped by category */}
-      <div className="grid gap-8 lg:grid-cols-3">
+      {/* Tokens grouped by category — original stacked-list layout, now stretched full width */}
+      <div className="grid gap-8 lg:grid-cols-2">
         {CATEGORY_ORDER.map((category) => {
           const rows = trendingTokens.filter((t) => t.category === category);
           if (rows.length === 0) return null;
