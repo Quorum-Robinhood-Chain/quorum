@@ -28,7 +28,7 @@ const SOURCES = [
 // Memecoins stay in their own category so they can be labelled separately (§17).
 // `coingeckoId` is the CoinGecko coin id (not the ticker) and is what makes a token
 // priced out of the box. Leave it null for anything CoinGecko doesn't list — those need
-// TOKEN_POOL_MAP (on-chain pool) or STOCK_TOKEN_MAP instead.
+// TOKEN_POOL_MAP (on-chain pool) or STOCK_TOKEN_MAP instead. tested
 const TOKENS = [
   {
     symbol: 'AAPLx',
