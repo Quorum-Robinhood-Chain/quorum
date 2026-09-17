@@ -1,4 +1,5 @@
 import { getNetworkSnapshotPresentation } from '@/lib/presenters/network-snapshot';
+import ConnectWalletButton from '@/components/ConnectWalletButton';
 
 // Fetch the latest network snapshot for the CTA statistics.
 export default async function CtaBanner() {
@@ -25,9 +26,7 @@ export default async function CtaBanner() {
             <a className="btn-lime" href="#news">
               See today&apos;s digest
             </a>
-            <a className="btn-ghost" href="#subscribe">
-              Get the weekly email
-            </a>
+            <ConnectWalletButton variant="ghost" />
           </div>
         </div>
 

@@ -1,5 +1,5 @@
 import { trending } from '@/data/articles';
-import NewsletterForm from '@/components/NewsletterForm';
+import ConnectWalletButton from '@/components/ConnectWalletButton';
 import { getNetworkSnapshotPresentation } from '@/lib/presenters/network-snapshot';
 
 export default async function Sidebar() {
@@ -37,14 +37,15 @@ export default async function Sidebar() {
         <p className="updated">{updatedLabel}</p>
       </div>
 
-      {/* Weekly newsletter signup */}
+      {/* Wallet connect */}
       <div className="side-panel newsletter-panel">
-        <h3 className="panel-title">Weekly Digest</h3>
+        <h3 className="panel-title">Connect Wallet</h3>
         <p>
-          One email every Friday: ecosystem moves, token activity, and
-          what&apos;s new on Robinhood Chain — no hype, not financial advice.
+          Connect to track Stock Token balances and DEX activity tied to your
+          address on Robinhood Chain — read-only, no transaction ever requested
+          here.
         </p>
-        <NewsletterForm />
+        <ConnectWalletButton variant="panel" />
       </div>
     </aside>
   );

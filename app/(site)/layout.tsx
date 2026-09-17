@@ -4,6 +4,7 @@ import { fontVariables } from '../fonts';
 import TickerBar from '@/components/TickerBar';
 import SiteHeader from '@/components/SiteHeader';
 import SiteFooter from '@/components/SiteFooter';
+import { WalletProvider } from '@/lib/wallet/WalletProvider';
 
 export const metadata: Metadata = {
   title: 'Quorum — News & market data for Robinhood Chain',
@@ -19,17 +20,19 @@ export default function SiteLayout({
   return (
     <html lang="en" className={fontVariables}>
       <body>
-        {/* Global market ticker */}
-        <TickerBar />
+        <WalletProvider>
+          {/* Global market ticker */}
+          <TickerBar />
 
-        {/* Main site navigation */}
-        <SiteHeader />
+          {/* Main site navigation */}
+          <SiteHeader />
 
-        {/* Page content */}
-        {children}
+          {/* Page content */}
+          {children}
 
-        {/* Global site footer */}
-        <SiteFooter />
+          {/* Global site footer */}
+          <SiteFooter />
+        </WalletProvider>
       </body>
     </html>
   );
