@@ -1,0 +1,69 @@
+name: Quorum scheduled jobs
+
+# Vercel Hobby only allows cron jobs that run once a day (see vercel.json — the
+# crons block was removed). This workflow replaces Vercel Cron: it hits the same
+# /api/cron/[job] endpoints on the original, more frequent schedule from outside
+# Vercel, authenticated with CRON_TRIGGER_SECRET (§ lib/auth/cron.ts).
+#
+# Required repo secrets (Settings → Secrets and variables → Actions):
+#   SITE_URL            e.g. https://quorum.example.com (no trailing slash)
+#   CRON_TRIGGER_SECRET  same value as CRON_TRIGGER_SECRET in Vercel env vars
+#
+# Note: GitHub's scheduler is best-effort — during high platform load, runs can be
+# delayed by several minutes (occasionally more). Fine for this use case, but don't
+# expect Vercel Cron-level punctuality. Also: GitHub auto-disables scheduled
+# workflows after 60 days with no repo activity — push anything to re-enable it,
+# or open the Actions tab and re-enable manually.
+
+on:
+  schedule:
+    - cron: '*/20 * * * *' # ingest — RSS + X (Apify)
+    - cron: '*/5 * * * *'  # market — on-chain/off-chain data refresh
+    - cron: '*/30 * * * *' # generate — automated article generation
+    - cron: '0 9 * * 5'    # weekly-digest — Fridays 09:00 UTC
+  workflow_dispatch:
+    inputs:
+      job:
+        description: 'Job to run (ingest, market, generate, weekly-digest)'
+        required: true
+        default: 'ingest'
+        type: choice
+        options:
+          - ingest
+          - market
+          - generate
+          - weekly-digest
+
+jobs:
+  trigger:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Resolve which job this run is for
+        id: job
+        run: |
+          case "${{ github.event.schedule }}" in
+            '*/20 * * * *') echo "name=ingest" >> "$GITHUB_OUTPUT" ;;
+            '*/5 * * * *')  echo "name=market" >> "$GITHUB_OUTPUT" ;;
+            '*/30 * * * *') echo "name=generate" >> "$GITHUB_OUTPUT" ;;
+            '0 9 * * 5')    echo "name=weekly-digest" >> "$GITHUB_OUTPUT" ;;
+            *)              echo "name=${{ github.event.inputs.job }}" >> "$GITHUB_OUTPUT" ;;
+          esac
+
+      - name: Call /api/cron/${{ steps.job.outputs.name }}
+        run: |
+          if [ -z "${{ secrets.SITE_URL }}" ] || [ -z "${{ secrets.CRON_TRIGGER_SECRET }}" ]; then
+            echo "::error::Missing SITE_URL or CRON_TRIGGER_SECRET repo secret."
+            exit 1
+          fi
+
+          http_code=$(curl -s -o response.json -w "%{http_code}" \
+            -X GET "${{ secrets.SITE_URL }}/api/cron/${{ steps.job.outputs.name }}" \
+            -H "x-cron-secret: ${{ secrets.CRON_TRIGGER_SECRET }}")
+
+          echo "HTTP $http_code"
+          cat response.json
+
+          if [ "$http_code" -ge 400 ]; then
+            echo "::error::Cron endpoint returned HTTP $http_code"
+            exit 1
+          fi
