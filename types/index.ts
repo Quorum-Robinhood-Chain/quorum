@@ -11,19 +11,18 @@ export type TickerItem = {
 // Single source of truth for article categories — the array is reused for runtime
 // validation, the union for types. "Governance/Staking" deliberately absent (§2/§11).
 export const ARTICLE_CATEGORIES = [
-  "Markets",
-  "Ecosystem",
-  "Tokens",
-  "Stock Tokens",
-  "Security",
-  "Learn",
+  'Markets',
+  'Ecosystem',
+  'Tokens',
+  'Stock Tokens',
+  'Security',
+  'Learn',
 ] as const;
 
 export type ArticleCategory = (typeof ARTICLE_CATEGORIES)[number];
 
-
 export type SourceAttribution = {
-  name: "BeInCrypto" | "Coinfomania" | "Quorum";
+  name: 'BeInCrypto' | 'Coinfomania' | 'Quorum';
   url: string;
 };
 
@@ -52,11 +51,11 @@ export type TrendingItem = {
 export type NetworkStat = {
   label: string;
   value: string;
-  trend?: "up" | "down";
+  trend?: 'up' | 'down';
 };
 
 // Memecoins kept as a separate category, not mixed with Stock/DeFi.
-export type TokenCategory = "stock_token" | "defi" | "meme";
+export type TokenCategory = 'stock_token' | 'defi' | 'meme';
 
 export type TokenRow = {
   id: string;
@@ -74,13 +73,15 @@ export type TokenRow = {
 export type LearnGuide = {
   id: string;
   title: string;
+  // Short label for compact spaces (e.g. the footer menu). Falls back to `title`.
+  shortTitle?: string;
   dek: string;
   body: string;
   href: string;
 };
 
 // Protocol integrations/TVL — no governance token to vote/stake.
-export type ProtocolCategory = "dex" | "lending" | "oracle";
+export type ProtocolCategory = 'dex' | 'lending' | 'oracle';
 
 export type ProtocolRow = {
   id: string;
@@ -96,7 +97,7 @@ export type ProtocolRow = {
 // Fields used by the /admin moderation queue, plus audit trail.
 // Auto-publish model: every automated draft is `published` immediately.
 // `unpublished` is the reversible emergency takedown an admin can apply.
-export type ArticleStatus = "published" | "unpublished";
+export type ArticleStatus = 'published' | 'unpublished';
 
 export type ReviewArticle = {
   id: string;

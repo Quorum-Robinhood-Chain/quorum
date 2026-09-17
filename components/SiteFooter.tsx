@@ -1,3 +1,7 @@
+import ConnectWalletButton from '@/components/ConnectWalletButton';
+import { newsCategories } from '@/data/news';
+import { learnGuides } from '@/data/learn';
+
 export default function SiteFooter() {
   return (
     <footer className="site">
@@ -24,79 +28,42 @@ export default function SiteFooter() {
           </p>
         </div>
 
-        {/* Network links */}
+        {/* Quorum menu: jump to the top of the homepage, or open the wallet modal */}
         <div className="footer-col">
-          <h4>Network</h4>
+          <h4>Quorum</h4>
           <ul>
             <li>
-              <a href="#">Block explorer</a>
+              <a href="/">Hot News</a>
             </li>
             <li>
-              <a href="#">Chain status</a>
-            </li>
-            <li>
-              <a href="#">Protocol directory</a>
-            </li>
-            <li>
-              <a href="#">API status</a>
+              <a href="/news">All News</a>
             </li>
           </ul>
         </div>
 
-        {/* Ecosystem links */}
+        {/* News menu: one link per news theme, deep-linking into /news pre-filtered */}
         <div className="footer-col">
-          <h4>Ecosystem</h4>
+          <h4>News</h4>
           <ul>
-            <li>
-              <a href="/ecosystem">Protocols & TVL</a>
-            </li>
-            <li>
-              <a href="/tokens">Trending tokens</a>
-            </li>
-            <li>
-              <a href="/tokens">Stock Tokens</a>
-            </li>
-            <li>
-              <a href="/tokens">DEX volume rankings</a>
-            </li>
+            {newsCategories.map((category) => (
+              <li key={category}>
+                <a href={`/news?category=${encodeURIComponent(category)}`}>
+                  {category}
+                </a>
+              </li>
+            ))}
           </ul>
         </div>
 
-        {/* Editorial links */}
+        {/* Learn menu: one link per explainer, with a short title */}
         <div className="footer-col">
-          <h4>Editorial</h4>
+          <h4>Learn</h4>
           <ul>
-            <li>
-              <a href="#">About Quorum</a>
-            </li>
-            <li>
-              <a href="#">Editorial guidelines</a>
-            </li>
-            <li>
-              <a href="#">Corrections</a>
-            </li>
-            <li>
-              <a href="#">Contact</a>
-            </li>
-          </ul>
-        </div>
-
-        {/* Legal links */}
-        <div className="footer-col">
-          <h4>Legal</h4>
-          <ul>
-            <li>
-              <a href="#">Not financial advice</a>
-            </li>
-            <li>
-              <a href="#">Sources & attribution</a>
-            </li>
-            <li>
-              <a href="#">Privacy</a>
-            </li>
-            <li>
-              <a href="#">Terms</a>
-            </li>
+            {learnGuides.map((guide) => (
+              <li key={guide.id}>
+                <a href={guide.href}>{guide.shortTitle ?? guide.title}</a>
+              </li>
+            ))}
           </ul>
         </div>
       </div>

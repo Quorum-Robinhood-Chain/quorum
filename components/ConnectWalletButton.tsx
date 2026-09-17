@@ -5,12 +5,14 @@ import { useWallet } from '@/lib/wallet/WalletProvider';
 import { truncateAddress } from '@/lib/format';
 import WalletModal from '@/components/WalletModal';
 
-type Variant = 'header' | 'ghost' | 'panel';
+type Variant = 'header' | 'ghost' | 'panel' | 'footer';
 
 const VARIANT_CLASS: Record<Variant, string> = {
   header: 'btn-connect',
   ghost: 'btn-ghost',
   panel: 'btn-lime wallet-panel-btn',
+  // Looks like the other footer menu links, but is a <button> that opens the modal.
+  footer: 'footer-link-btn',
 };
 
 export default function ConnectWalletButton({

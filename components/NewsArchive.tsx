@@ -9,13 +9,18 @@ export default function NewsArchive({
   articles,
   categories,
   usingLiveData,
+  initialCategory = 'All',
 }: {
   articles: Article[];
   categories: ArticleCategory[];
   usingLiveData: boolean;
+  // Pre-selected category, e.g. from a ?category= deep link (footer, etc).
+  initialCategory?: ArticleCategory | 'All';
 }) {
   // Track the currently selected news category test
-  const [active, setActive] = useState<ArticleCategory | 'All'>('All');
+  const [active, setActive] = useState<ArticleCategory | 'All'>(
+    initialCategory,
+  );
 
   // Filter articles based on the selected category
   const filtered = useMemo(
@@ -76,7 +81,11 @@ export default function NewsArchive({
                 </span>
                 {article.gated && (
                   <span className="inline-flex items-center gap-1 rounded-full bg-lime-tint px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-olive">
-                    <Lock className="h-2.5 w-2.5" strokeWidth={2.5} aria-hidden="true" />
+                    <Lock
+                      className="h-2.5 w-2.5"
+                      strokeWidth={2.5}
+                      aria-hidden="true"
+                    />
                     Holder-only
                   </span>
                 )}
