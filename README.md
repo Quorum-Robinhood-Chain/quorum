@@ -143,20 +143,31 @@ badge, the response from that call lists exactly which provider failed and why.
 
 ### 7. Scheduled jobs
 
-`vercel.json` registers four crons:
+Quorum is on Hobby, which only allows crons that run **once a day** — so `vercel.json`
+no longer registers any crons (an empty `crons` block would fail deploy the moment a
+schedule runs more than daily). Instead, `.github/workflows/cron.yml` triggers the same
+endpoints on the original cadence from GitHub Actions:
 
 | Schedule | Path | Job |
 |---|---|---|
 | every 5 min | `/api/cron/market` | refresh market/on-chain snapshots |
-| every 20 min | `/api/cron/ingest` | poll news feeds + monitored X accounts, filter for relevance |
+| every 20 min | `/api/cron/ingest` | poll news feeds + monitored X accounts (via Apify), filter for relevance |
 | every 30 min | `/api/cron/generate` | generate one draft, auto-published immediately |
-| Fridays 09:00 | `/api/cron/weekly-digest` | weekly rollup |
+| Fridays 09:00 UTC | `/api/cron/weekly-digest` | weekly rollup |
 
-Add `CRON_SECRET` in Vercel — Cron sends it as `Authorization: Bearer …` automatically.
+Set two repo secrets in GitHub (Settings → Secrets and variables → Actions):
 
-The Hobby plan only runs **daily** crons, and caps functions at 10s (too short for
-generation). Either upgrade to Pro, or point an external scheduler (GitHub Actions,
-cron-job.org) at the same URLs using the `x-cron-secret` header.
+- `SITE_URL` — your deployed URL, no trailing slash (e.g. `https://quorum.example.com`)
+- `CRON_TRIGGER_SECRET` — same value as the env var in Vercel
+
+`CRON_SECRET` (the Vercel-Cron-only secret) can stay blank since Vercel Cron isn't in use.
+
+**Watch the Hobby function duration limit too.** `generate` calls the MiMo LLM API and can
+run past Hobby's default function timeout regardless of who triggers it — if it starts
+timing out, that's the next thing to fix (shorter timeout budget, or upgrade to Pro).
+
+Trigger any job manually from the Actions tab → "Quorum scheduled jobs" → **Run workflow**
+(pick a job from the dropdown), or with curl the same way:
 
 ### Day-to-day workflow
 
@@ -255,7 +266,7 @@ app/
   (site)/            public pages — home, markets, tokens, ecosystem, news, learn
   (admin)/admin/     moderation queue — flag/unpublish/edit, own root layout, no site chrome
   api/
-    cron/[job]/      scheduled entry point (Vercel Cron or external scheduler)
+    cron/[job]/      scheduled entry point (GitHub Actions — .github/workflows/cron.yml)
     admin/           login/logout, moderation actions, manual job trigger
     health/          config + connectivity diagnostics
 lib/
