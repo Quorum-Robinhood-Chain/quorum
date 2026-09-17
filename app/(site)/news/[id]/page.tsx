@@ -1,7 +1,9 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
-import { Bot, Newspaper, Clock } from 'lucide-react';
+import { Bot, Newspaper, Clock, Lock } from 'lucide-react';
 import { getArticleById } from '@/lib/presenters/articles';
+import { paragraphs } from '@/lib/format';
+import GatedArticleBody from '@/components/GatedArticleBody';
 
 // Always fetch the latest article data on each request.
 export const dynamic = 'force-dynamic';
@@ -80,6 +82,18 @@ export default async function ArticlePage({
             {article.timeAgo}
           </span>
 
+          {article.gated && (
+            <span className="flex items-center gap-1 font-semibold text-olive">
+              <Lock
+                className="h-3.5 w-3.5"
+                strokeWidth={2.2}
+                aria-hidden="true"
+              />
+              Holder-only · {article.requiredBalance.toLocaleString()} $QUORUM
+              min
+            </span>
+          )}
+
           {article.sourceNames.length > 0 && (
             <span className="flex flex-wrap items-center gap-1">
               via{' '}
@@ -104,16 +118,21 @@ export default async function ArticlePage({
           )}
         </div>
 
-        {/* Article body */}
-        <div className="mt-6 space-y-4 text-[15px] leading-relaxed text-ink">
-          {article.body
-            .split(/\n\s*\n/)
-            .map((paragraph) => paragraph.trim())
-            .filter(Boolean)
-            .map((paragraph, i) => (
+        {/* Article body — withheld server-side while gated (see getArticleById);
+            GatedArticleBody re-fetches it client-side once a wallet clears the check. */}
+        {article.gated ? (
+          <GatedArticleBody
+            articleId={article.id}
+            requiredBalance={article.requiredBalance}
+            minutesUntilUnlock={article.minutesUntilUnlock}
+          />
+        ) : (
+          <div className="mt-6 space-y-7 text-[16px] leading-[1.75] text-ink">
+            {paragraphs(article.body).map((paragraph, i) => (
               <p key={i}>{paragraph}</p>
             ))}
-        </div>
+          </div>
+        )}
 
         {/* Financial disclaimer */}
         <p className="mt-8 text-xs text-gray-400">

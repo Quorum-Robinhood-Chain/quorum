@@ -8,10 +8,12 @@ import {
 } from './prompts';
 import { fetchNewPairsSince } from '@/lib/market/chain-rpc';
 
-const HOURLY_TEMPLATES: TemplateType[] = [
+// Rotated every generation cycle (every 30 minutes by default — see vercel.json).
+const GENERATION_TEMPLATES: TemplateType[] = [
   'trending_dex_tokens',
   'new_token_launches',
   'ecosystem_roundup',
+  'social_pulse',
   'stock_token_movers',
   'tvl_lending_snapshot',
 ];
@@ -137,6 +139,41 @@ async function gatherData(template: TemplateType): Promise<GatheredData> {
       };
     }
 
+    case 'social_pulse': {
+      // Raw material only — these never appear to readers as their own "tweet" item,
+      // only synthesized into an original story (§6.1 rule 1, §16 template instructions).
+      const posts = await prisma.rawItem.findMany({
+        where: {
+          isRelevant: true,
+          usedInArticle: false,
+          source: { type: 'social' },
+        },
+        orderBy: { fetchedAt: 'desc' },
+        take: 12,
+        include: { source: true },
+      });
+
+      return {
+        verifiedData: {
+          posts: posts.map((p) => ({
+            handle: p.source.handle,
+            text: p.excerpt,
+            postedAt: p.publishedAt,
+            url: p.url,
+          })),
+        },
+        generationInputs: posts.map(
+          (p) => `x:@${p.source.handle}:${p.url}`,
+        ),
+        sourceNames: [...new Set(posts.map((p) => `X: @${p.source.handle}`))],
+        sourceUrls: posts.map((p) => p.url),
+        rawItemIds: posts.map((p) => p.id),
+        // Need a genuine "pulse" (multiple accounts/posts), not a single tweet
+        // dressed up as a trend.
+        hasEnoughData: posts.length >= 3,
+      };
+    }
+
     case 'stock_token_movers': {
       const stockTokens = await prisma.token.findMany({
         where: { category: 'stock_token', isTracked: true },
@@ -252,7 +289,29 @@ export type GenerateResult =
       template: TemplateType;
       articleId: string;
       headline: string;
+      flagged: boolean;
     };
+
+// Cheap, deterministic quality signals checked *after* generation. None of
+// these block publishing — the site is auto-publish by design, so the story
+// is already live for gated ($QUORUM holders) or public readers by the time
+// this runs. They only set `flagged`, which surfaces the draft at the top of
+// the admin queue for a fast look, with an emergency unpublish one click away.
+function autoFlagReason(
+  generated: GeneratedArticle,
+  data: GatheredData,
+): string | null {
+  if (data.generationInputs.length < 2) {
+    return 'low data coverage — fewer than 2 verified inputs';
+  }
+  if (generated.body.trim().length < 200) {
+    return 'unusually short body';
+  }
+  if (!generated.dek || generated.dek.trim().length === 0) {
+    return 'missing dek';
+  }
+  return null;
+}
 
 // Generate an automated draft from verified data and the selected template.
 export async function generateArticle(
@@ -260,7 +319,7 @@ export async function generateArticle(
 ): Promise<GenerateResult> {
   const template =
     forceTemplate ??
-    HOURLY_TEMPLATES[Math.floor(Math.random() * HOURLY_TEMPLATES.length)];
+    GENERATION_TEMPLATES[Math.floor(Math.random() * GENERATION_TEMPLATES.length)];
 
   const data = await gatherData(template);
 
@@ -286,8 +345,11 @@ export async function generateArticle(
   ]);
 
   const generated = parseModelJson(raw);
+  const flagReason = autoFlagReason(generated, data);
 
-  // Create the generated article as a draft for human review (§8.5).
+  // Auto-publish: the draft goes live immediately, gated by wallet + $QUORUM
+  // balance for the first hour (see lib/gating.ts). No manual approval step.
+  const now = new Date();
   const article = await prisma.article.create({
     data: {
       templateType: TEMPLATE_LABELS[template],
@@ -299,7 +361,10 @@ export async function generateArticle(
       sourceNames: data.sourceNames,
       sourceUrls: data.sourceUrls,
       generationInputs: data.generationInputs,
-      status: 'draft',
+      status: 'published',
+      publishedAt: now,
+      flagged: flagReason !== null,
+      flagReason,
     },
   });
 
@@ -315,5 +380,6 @@ export async function generateArticle(
     template,
     articleId: article.id,
     headline: article.headline,
+    flagged: article.flagged,
   };
 }

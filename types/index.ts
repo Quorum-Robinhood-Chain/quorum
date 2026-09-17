@@ -38,6 +38,9 @@ export type Article = {
   automated: boolean;
   source: SourceAttribution;
   href: string;
+  /** True while the article is still inside the holder-only window (< 1 hour old).
+   *  Omitted (falsy) on the static sample/fallback data, which is always public. */
+  gated?: boolean;
 };
 
 export type TrendingItem = {
@@ -90,8 +93,10 @@ export type ProtocolRow = {
   url: string;
 };
 
-// Fields used by the /admin review queue, plus audit trail.
-export type ArticleStatus = "draft" | "reviewed" | "published";
+// Fields used by the /admin moderation queue, plus audit trail.
+// Auto-publish model: every automated draft is `published` immediately.
+// `unpublished` is the reversible emergency takedown an admin can apply.
+export type ArticleStatus = "published" | "unpublished";
 
 export type ReviewArticle = {
   id: string;
@@ -101,6 +106,8 @@ export type ReviewArticle = {
   status: ArticleStatus;
   automated: boolean;
   edited?: boolean;
+  flagged?: boolean;
+  flagReason?: string | null;
   sources: string[];
   generationInputs: string[];
   generatedAt: string;

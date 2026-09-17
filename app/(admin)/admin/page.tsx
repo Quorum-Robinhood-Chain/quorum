@@ -80,12 +80,15 @@ export default async function AdminDashboardPage() {
       <main className="mx-auto max-w-site px-6 py-8">
         {/* Review queue overview */}
         <h1 className="font-display text-2xl font-extrabold">
-          Editorial review queue
+          Moderation queue
         </h1>
 
         <p className="mt-1 max-w-2xl text-sm text-gray-600">
-          Human-in-the-loop review before automated drafts go live (dev-brief
-          §8.5) — especially anything carrying specific numbers or token names.
+          Every automated draft publishes immediately — nothing waits on
+          approval. This is the safety net: flagged drafts (low data
+          coverage, short body, missing dek) float to the top, and Unpublish
+          is a one-click, reversible emergency takedown for anything that
+          needs it.
         </p>
 
         {!usingLiveData && (
@@ -104,7 +107,7 @@ export default async function AdminDashboardPage() {
         {/* Review queue status and demo information */}
         <p className="mt-4 text-xs text-gray-400">
           {usingLiveData
-            ? 'Approve/reject/edit actions here call the real articles table (§10, §8.6).'
+            ? 'Edit/flag/unpublish actions here call the real articles table (§10, §8.6).'
             : 'No drafts in the database yet, so actions below only update local state for this demo — use the "Trigger job" button above (or POST /api/admin/trigger) to generate a draft and see it wired end to end.'}
         </p>
       </main>

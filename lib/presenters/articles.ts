@@ -1,5 +1,7 @@
 import { prisma } from '@/lib/db';
 import { timeAgo, estimateReadTime } from '@/lib/format';
+import { isGated, gateUnlocksAt, minutesUntilUnlock } from '@/lib/gating';
+import { quorumMinBalance } from '@/lib/wallet/quorumToken';
 import {
   heroArticle,
   heroSideArticles,
@@ -96,6 +98,7 @@ export async function getArticlesPresentation(
         url: a.sourceUrls[0] ?? '#',
       },
       href: `/news/${a.id}`,
+      gated: isGated(a.publishedAt ?? a.generatedAt),
     }));
 
     return { articles, usingLiveData: true };
@@ -149,15 +152,24 @@ export interface ArticleDetail {
   category: ArticleCategory;
   headline: string;
   dek: string;
+  /** Empty string while gated — the body is deliberately withheld server-side,
+   *  never shipped to the client and hidden behind a wallet check client-side. */
   body: string;
   desk: string;
   timeAgo: string;
   automated: boolean;
   sourceNames: string[];
   sourceUrls: string[];
+  gated: boolean;
+  unlocksAt: string | null;
+  minutesUntilUnlock: number;
+  requiredBalance: number;
 }
 
-// Fetch a published article by ID and return its presentation data.
+// Fetch a published article by ID and return its presentation data. The body
+// is withheld while the article is still inside the gate window — callers that
+// need the real text once a wallet has been verified should use
+// `getGatedArticleBody` instead of trying to read `.body` off this result.
 export async function getArticleById(
   id: string,
 ): Promise<ArticleDetail | null> {
@@ -166,21 +178,75 @@ export async function getArticleById(
 
     if (!a || a.status !== 'published') return null;
 
+    const publishedAt = a.publishedAt ?? a.generatedAt;
+    const gated = isGated(publishedAt);
+
     return {
       id: a.id,
       category: toArticleCategory(a.category),
       headline: a.headline,
       dek: a.dek ?? '',
-      body: a.body,
+      body: gated ? '' : a.body,
       desk: a.automated
         ? 'Quorum Automated Desk'
         : (a.sourceNames[0] ?? 'Quorum'),
-      timeAgo: timeAgo(a.publishedAt ?? a.generatedAt),
+      timeAgo: timeAgo(publishedAt),
       automated: a.automated,
       sourceNames: a.sourceNames,
       sourceUrls: a.sourceUrls,
+      gated,
+      unlocksAt: gated ? gateUnlocksAt(publishedAt).toISOString() : null,
+      minutesUntilUnlock: gated ? minutesUntilUnlock(publishedAt) : 0,
+      requiredBalance: quorumMinBalance(),
     };
   } catch {
     return null;
   }
+}
+
+export type GatedBodyResult =
+  | { ok: true; body: string }
+  | {
+      ok: false;
+      error:
+        | 'not_found'
+        | 'no_address'
+        | 'insufficient_balance'
+        | 'gate_not_configured'
+        | 'rpc_error';
+      detail?: string;
+      balance?: number;
+      required?: number;
+    };
+
+// Re-checks the gate server-side and returns the real article body only if the
+// address holds enough $QUORUM (or the article has aged out of the gate window
+// on its own). This is the only path that should ever return a gated body —
+// the client never receives it from any other route.
+export async function getGatedArticleBody(
+  id: string,
+  address: string | null,
+): Promise<GatedBodyResult> {
+  const a = await prisma.article.findUnique({ where: { id } });
+  if (!a || a.status !== 'published') return { ok: false, error: 'not_found' };
+
+  const publishedAt = a.publishedAt ?? a.generatedAt;
+  if (!isGated(publishedAt)) return { ok: true, body: a.body };
+
+  if (!address) return { ok: false, error: 'no_address' };
+
+  const { checkQuorumBalance } = await import('@/lib/wallet/quorumToken');
+  const result = await checkQuorumBalance(address);
+
+  if (!result.ok) {
+    if (result.reason === 'not_configured') {
+      return { ok: false, error: 'gate_not_configured', required: result.required };
+    }
+    if (result.reason === 'rpc_error') {
+      return { ok: false, error: 'rpc_error', detail: result.detail, required: result.required };
+    }
+    return { ok: false, error: 'insufficient_balance', required: result.required };
+  }
+
+  return { ok: true, body: a.body };
 }

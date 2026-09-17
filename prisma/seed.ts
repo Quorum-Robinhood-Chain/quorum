@@ -2,6 +2,11 @@ import { PrismaClient } from '@prisma/client';
 
 // Seeds the reference rows the pipeline needs: news sources, tracked tokens, and the
 // admin editor. Safe to re-run — everything is an upsert.
+//
+// X/Twitter sources are NOT seeded here on purpose — `ingestApifyPosts()`
+// (lib/sources/apify-ingest.ts) upserts a Source row per handle straight from
+// APIFY_MONITORED_ACCOUNTS on every ingest run, so the account list is just an env var,
+// not a migration/reseed.
 const prisma = new PrismaClient();
 
 const SOURCES = [

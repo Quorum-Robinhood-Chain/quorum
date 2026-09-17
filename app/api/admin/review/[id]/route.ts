@@ -4,10 +4,18 @@ import { requireAdminSession } from '@/lib/auth/session';
 
 export const dynamic = 'force-dynamic';
 
+// Articles are auto-published on generation — there's no approve/reject queue
+// anymore. What's left for an admin to do to a live article:
+//   edit       — fix a headline/body in place, without touching visibility
+//   flag       — mark for attention (stays live; shows up top of the queue)
+//   unflag     — clear a flag once it's been looked at
+//   unpublish  — emergency takedown (reversible)
+//   republish  — undo an unpublish
 interface PatchBody {
-  action: 'review' | 'publish' | 'reject' | 'edit';
+  action: 'edit' | 'flag' | 'unflag' | 'unpublish' | 'republish';
   headline?: string;
   body?: string;
+  flagReason?: string;
 }
 
 export async function PATCH(
@@ -57,37 +65,53 @@ export async function PATCH(
             headline: payload.headline,
             body: payload.body,
             edited: true,
-          },
-        });
-        break;
-
-      case 'review':
-        article = await prisma.article.update({
-          where: { id: params.id },
-          data: {
-            status: 'reviewed',
-            reviewedAt: new Date(),
             reviewerId: editor.id,
           },
         });
         break;
 
-      case 'publish':
+      case 'flag':
+        article = await prisma.article.update({
+          where: { id: params.id },
+          data: {
+            flagged: true,
+            flagReason: payload.flagReason ?? 'flagged by admin',
+            reviewerId: editor.id,
+          },
+        });
+        break;
+
+      case 'unflag':
+        article = await prisma.article.update({
+          where: { id: params.id },
+          data: {
+            flagged: false,
+            flagReason: null,
+            reviewerId: editor.id,
+          },
+        });
+        break;
+
+      case 'unpublish':
+        article = await prisma.article.update({
+          where: { id: params.id },
+          data: {
+            status: 'unpublished',
+            unpublishedAt: new Date(),
+            reviewerId: editor.id,
+          },
+        });
+        break;
+
+      case 'republish':
         article = await prisma.article.update({
           where: { id: params.id },
           data: {
             status: 'published',
-            publishedAt: new Date(),
-            reviewerId: editor.id,
-          },
-        });
-        break;
-
-      case 'reject':
-        article = await prisma.article.update({
-          where: { id: params.id },
-          data: {
-            status: 'rejected',
+            // Keep the original publishedAt so the gate window is based on
+            // when the story first went live, not on when it was restored.
+            publishedAt: existing.publishedAt ?? new Date(),
+            unpublishedAt: null,
             reviewerId: editor.id,
           },
         });

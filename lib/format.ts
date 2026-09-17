@@ -41,3 +41,36 @@ export function estimateReadTime(text: string): string {
   const words = text.trim().split(/\s+/).filter(Boolean).length;
   return `${Math.max(1, Math.round(words / 40))} min read`;
 }
+
+// Split a stored article/guide body into clean paragraphs for rendering. Bodies are
+// meant to use a blank line between paragraphs, but this stays defensive: it also
+// accepts single-newline breaks, collapses stray whitespace inside a paragraph, and
+// — if a body ever arrives as one unbroken block with no line breaks at all (e.g. a
+// model output that skipped the blank-line instruction) — falls back to grouping
+// sentences so it still reads as multiple paragraphs instead of one wall of text.
+export function paragraphs(text: string): string[] {
+  const normalized = text.replace(/\r\n/g, '\n').trim();
+  if (!normalized) return [];
+
+  const hasBlankLineBreaks = /\n\s*\n/.test(normalized);
+  const blocks = (
+    hasBlankLineBreaks ? normalized.split(/\n\s*\n/) : normalized.split(/\n+/)
+  )
+    .map((p) => p.replace(/[ \t]+/g, ' ').trim())
+    .filter(Boolean);
+
+  if (blocks.length > 1) return blocks;
+
+  // No paragraph breaks at all — group sentences ~3 at a time as a fallback.
+  const sentences = normalized.match(/[^.!?]+[.!?]+(?:\s+|$)/g) ?? [normalized];
+  const grouped: string[] = [];
+  for (let i = 0; i < sentences.length; i += 3) {
+    grouped.push(
+      sentences
+        .slice(i, i + 3)
+        .join('')
+        .trim(),
+    );
+  }
+  return grouped.filter(Boolean);
+}

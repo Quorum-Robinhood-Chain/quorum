@@ -1,8 +1,12 @@
 # Quorum
 
 News and market-data site for the **Robinhood Chain** ecosystem (Ethereum L2, chain ID 4663).
-Curated third-party reporting + live on-chain/market data, written up automatically on an
-hourly cycle and held behind an editorial review gate.
+Curated third-party reporting + X/Twitter market chatter + live on-chain/market data,
+written up automatically every 30 minutes and **auto-published immediately** — no manual
+approval step. Stories stay **holder-only for their first hour**: reading one within that
+window requires a connected wallet holding at least 50,000 **$QUORUM**, Quorum's own access
+token (unrelated to any Robinhood Chain asset). After an hour, every story is free for
+everyone.
 
 Built from `dev-brief.md`. Next.js 14 (App Router) · TypeScript · Tailwind v4 · Prisma/Postgres · MiMo.
 
@@ -144,8 +148,8 @@ badge, the response from that call lists exactly which provider failed and why.
 | Schedule | Path | Job |
 |---|---|---|
 | every 5 min | `/api/cron/market` | refresh market/on-chain snapshots |
-| every 20 min | `/api/cron/ingest` | poll news feeds, filter for relevance |
-| hourly | `/api/cron/generate` | generate one draft from the template rotation |
+| every 20 min | `/api/cron/ingest` | poll news feeds + monitored X accounts, filter for relevance |
+| every 30 min | `/api/cron/generate` | generate one draft, auto-published immediately |
 | Fridays 09:00 | `/api/cron/weekly-digest` | weekly rollup |
 
 Add `CRON_SECRET` in Vercel — Cron sends it as `Authorization: Bearer …` automatically.
@@ -167,11 +171,19 @@ cron-job.org) at the same URLs using the `x-cron-secret` header.
 
 ```
 [RSS ingest] ──► raw_items ─┐
-                            ├─► [MiMo writer] ──► articles(draft) ──► [review] ──► published
-[market refresh] ─► market_snapshots ─┘                                              │
-                            └──────────────────────────────────────► ticker / sidebar / pages
+[X/Twitter ingest] ──► raw_items ─┤
+                                  ├─► [MiMo writer] ──► articles(published, gated 1hr) ──► ticker / sidebar / pages
+[market refresh] ─► market_snapshots ─┘                                                       │
+                                                            [wallet connect + $QUORUM balance] ─┘
+                                                            (only checked while an article is < 1hr old)
 ```
 
+- **Auto-publish, not review-gated.** A generated draft is live the instant `generateArticle()`
+  writes it — `status: 'published'`, `publishedAt: now`. There's no approval step in the path.
+- **The safety net is a flag, not a gate.** Cheap heuristics (`autoFlagReason()` in
+  `lib/llm/generate.ts`: thin data coverage, a too-short body, a missing dek) set `flagged: true`
+  on the same row. Flagged stories stay live and float to the top of `/admin` for a quick look;
+  `Unpublish` there is a one-click, reversible emergency takedown for anything that needs it.
 - **Numbers never come from article text.** Anything presented as a figure is read from a
   market snapshot row, and the generator passes only those values to the model as
   `VERIFIED DATA` (§6.1 rule 2).
@@ -182,22 +194,78 @@ cron-job.org) at the same URLs using the `x-cron-secret` header.
 - **Graceful degradation.** If the DB or a data provider is unreachable, presenters fall
   back to the sample set in `data/` and the UI says so — stale data is never shown as live.
 
+### Two kinds of "news"
+
+- **From outside** (`lib/sources/ingest.ts` + `lib/sources/apify-ingest.ts`) — RSS from
+  BeInCrypto/Coinfomania and posts from monitored X accounts, scraped via an Apify Actor.
+  Neither is ever shown to readers as-is: both land in `raw_items` as raw material, and
+  only `ecosystem_roundup` (RSS) / `social_pulse` (X) turn them into an original Quorum
+  article — see editorial rule 1, "attribute, don't republish."
+- **Made by Quorum** — everything the `generate` cron produces every 30 minutes, across
+  all seven templates (`lib/llm/prompts.ts` → `TEMPLATE_LABELS`), auto-published
+  immediately and gated for the first hour (see "Wallet + $QUORUM gating" below).
+
+### X/Twitter ingestion (via Apify)
+
+- **Config-driven, no seed step.** `APIFY_MONITORED_ACCOUNTS` (comma-separated handles)
+  is the only thing you edit to change who's monitored — `ingestApifyPosts()` upserts a
+  `Source` row (`type: social`) per handle on every run, so there's nothing to reseed.
+- **One Actor run per cycle.** All configured handles become one `searchTerms` array
+  (`from:handle -filter:retweets -filter:replies` each), sent to Apify's
+  `run-sync-get-dataset-items` endpoint for the Actor named in `APIFY_ACTOR_ID` (defaults
+  to `apidojo/tweet-scraper`), on the same 20-min `ingest` cron as the RSS feeds
+  (`lib/jobs.ts`).
+- **No X developer account needed.** Posts come from Apify's scraper Actor instead of the
+  X API, so there's no X API tier to buy — just an Apify account and API token.
+  `APIFY_API_TOKEN` unset, or the Actor run failing, both fail closed with a clear
+  `error` in the job result, same as a missing RSS `feedUrl`.
+- **Broader relevance gate than RSS.** `isMarketSignal()` (`lib/relevance.ts`) looks for
+  general crypto/market language or a `$TICKER`/percentage pattern, not an explicit
+  Robinhood Chain mention — the point of X here is ambient market mood, not on-topic
+  news. `social_pulse` still requires ≥ 3 relevant posts before it'll write a story.
+- **Never shown as a tweet.** Posts are paraphrased into an original piece and
+  attributed by `@handle` with a link out — see editorial rule 6.
+- **Swapping the Actor.** Different Apify Twitter/X scraper Actors return slightly
+  different dataset item shapes — if you point `APIFY_ACTOR_ID` at a different Actor,
+  update the `ApifyTweetItem` mapping in `lib/sources/apify-ingest.ts` to match its
+  output fields (text, url, createdAt, author username, retweet/reply flags).
+
+### Wallet + $QUORUM gating
+
+- **Window, not a flag on the row.** Gating is derived from `publishedAt` at request time
+  (`lib/gating.ts`, default 60 min via `GATE_WINDOW_MINUTES`) — nothing needs to run to "release"
+  an article, it just ages out.
+- **The body never reaches the client while gated.** `getArticleById()` (`lib/presenters/articles.ts`)
+  returns `body: ''` for a gated article; the real text only comes back from
+  `getGatedArticleBody()`, called server-side by `GET /api/articles/[id]?address=0x…` after
+  re-checking both the age and the on-chain balance. The article detail page renders the gated
+  case through `components/GatedArticleBody.tsx`, a client component that connects a wallet
+  (`lib/wallet/WalletProvider.tsx`, EIP-6963) and calls that same endpoint.
+- **Balance check is a plain ERC-20 read.** `lib/wallet/quorumToken.ts` calls `balanceOf` on
+  `QUORUM_TOKEN_ADDRESS` via `QUORUM_TOKEN_RPC_URL` (falls back to `RHC_RPC_URL`). $QUORUM isn't
+  deployed yet — see **Open items** — so until `QUORUM_TOKEN_ADDRESS` is set the gate reports
+  `gate_not_configured` rather than silently failing open or closed.
+- **Threshold is config, not code.** `QUORUM_MIN_BALANCE` (default `50000`) and
+  `QUORUM_TOKEN_DECIMALS` are both env vars — change the minimum without a redeploy of the logic.
+
 ### Project layout
 
 ```
 app/
   (site)/            public pages — home, markets, tokens, ecosystem, news, learn
-  (admin)/admin/     review queue (own root layout, no site chrome)
+  (admin)/admin/     moderation queue — flag/unpublish/edit, own root layout, no site chrome
   api/
     cron/[job]/      scheduled entry point (Vercel Cron or external scheduler)
-    admin/           login/logout, review queue, manual job trigger
+    admin/           login/logout, moderation actions, manual job trigger
     health/          config + connectivity diagnostics
 lib/
   env.ts             every env read goes through here
+  gating.ts          1-hour gate window (publishedAt age check)
   auth/              admin session (Edge-safe HMAC cookie) + cron authorisation
   llm/               MiMo client, system prompt, generation pipeline
   market/            DefiLlama, Morpho, stock tokens, on-chain pools, refresh job
-  sources/           RSS ingestion
+  sources/           RSS + X/Twitter ingestion (ingest.ts, apify-ingest.ts)
+  wallet/            EIP-6963 connect (client) + $QUORUM balanceOf check (server)
   presenters/        DB → view models, with sample-data fallbacks
 data/                sample content used only when nothing is live yet
 ```
@@ -211,15 +279,29 @@ From brief §6.1, §13 and §16 — enforced in `lib/llm/prompts.ts`:
 - Summarise in original wording, attribute, link out. Never republish.
 - Every stated number must come from the verified data block.
 - No invented quotes, no buy/sell advice, no price predictions.
+- Posts from monitored X accounts are sentiment, not fact — paraphrased and attributed by
+  handle, never treated as confirmation of anything unless it's also in verified data.
 - Automated articles carry a visible badge; "Not financial advice" appears site-wide.
 - Robinhood Chain has **no** native governance token, no staking APY and no "RHC" coin —
   the prompt forbids implying otherwise, even for dramatic effect.
+- $QUORUM is Quorum's own access-gating token, unrelated to Robinhood Chain governance —
+  the model may only name it when the template is explicitly about it, and may never state
+  or imply a $QUORUM price, price target, or price movement.
 
 ## Open items before launch
 
 - Confirm BeInCrypto and Coinfomania offer official feeds, and check their robots.txt/ToS.
   Leave a feed URL blank and that source is skipped — there is deliberately no scraper.
+- **X ingestion needs an Apify account/token set up and `APIFY_MONITORED_ACCOUNTS`
+  populated** before it does anything — `APIFY_API_TOKEN` unset means `social_pulse`
+  never has enough data and `generateArticle()` just skips that cycle. Also worth
+  deciding up front which accounts are appropriate to quote-by-proxy in a published
+  story, and checking the chosen scraper Actor's own usage terms.
 - Confirm the DefiLlama chain slug, the Morpho USDG market id, and the Stock Token
   contract addresses once Robinhood Chain is listed and documented.
+- **$QUORUM isn't deployed yet.** `QUORUM_TOKEN_ADDRESS` is a placeholder env var — set it
+  (and `QUORUM_TOKEN_RPC_URL` if the token ends up on a different chain than Robinhood Chain)
+  once the contract exists. Until then the gate reports `gate_not_configured` instead of
+  pretending to work.
 - Trademark check on the "Quorum" name (ConsenSys already ships an enterprise chain by
   that name, though the markets don't overlap).

@@ -5,14 +5,8 @@ export default function LearnSection() {
   return (
     <section className="mx-auto max-w-site px-6 pb-10" id="learn">
       {/* Learn section header */}
-      <div className="flex items-baseline justify-between border-b-2 border-ink pb-[18px] pt-9 mb-6">
+      <div className="border-b-2 border-ink pb-[18px] pt-9 mb-6">
         <h2 className="font-display text-2xl font-extrabold text-ink">Learn</h2>
-        <a
-          className="text-[13.5px] font-semibold text-olive hover:underline"
-          href="#"
-        >
-          All guides
-        </a>
       </div>
 
       {/* Educational guides */}
