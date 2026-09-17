@@ -16,7 +16,11 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const guide = getGuideById(params.id);
   if (!guide) return { title: 'Guide not found — Quorum' };
-  return { title: `${guide.title} — Quorum Learn`, description: guide.dek };
+
+  return {
+    title: `${guide.title} — Quorum Learn`,
+    description: guide.dek,
+  };
 }
 
 export default function LearnGuidePage({ params }: { params: { id: string } }) {
@@ -29,13 +33,16 @@ export default function LearnGuidePage({ params }: { params: { id: string } }) {
         Not financial advice. Quorum is independent and not affiliated with
         Robinhood Markets, Inc.
       </div>
+
       <article className="mx-auto max-w-2xl px-6 py-9">
         <span className="text-[11.5px] font-bold uppercase tracking-wide text-olive">
           Explainer
         </span>
+
         <h1 className="mt-2 font-display text-2xl font-extrabold leading-tight text-ink">
           {guide.title}
         </h1>
+
         {guide.dek && (
           <p className="mt-3 text-base text-gray-600">{guide.dek}</p>
         )}
@@ -44,7 +51,8 @@ export default function LearnGuidePage({ params }: { params: { id: string } }) {
           <span>Quorum Education Desk</span>
         </div>
 
-        <div className="mt-6 space-y-7 text-[16px] leading-[1.75] text-ink">
+        {/* Guide body — justified */}
+        <div className="mt-6 space-y-7 text-justify text-[16px] leading-[1.75] text-ink">
           {paragraphs(guide.body).map((paragraph, i) => (
             <p key={i}>{paragraph}</p>
           ))}

@@ -48,51 +48,59 @@
   --maxw: 1260px;
 }
 
-*,
-*::before,
-*::after {
-  box-sizing: border-box;
-}
-html {
-  -webkit-text-size-adjust: 100%;
-}
-body {
-  margin: 0;
-  background: var(--sidebar-bg);
-  color: var(--ink);
-  font-family: var(--font-body);
-  line-height: 1.5;
-  -webkit-font-smoothing: antialiased;
-}
-img,
-svg {
-  display: block;
-  max-width: 100%;
-}
-a {
-  color: inherit;
-  text-decoration: none;
-}
-button {
-  font-family: inherit;
-  cursor: pointer;
-}
-ul {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-h1,
-h2,
-h3,
-h4,
-p {
-  margin: 0;
-}
+/* Wrapped in Tailwind's own "base" layer (instead of left unlayered) so these
+   resets sit at base-layer priority and utility classes — like the space-y-7
+   used for article-paragraph spacing — can still override them, e.g. the
+   `p { margin: 0 }` reset below no longer wins over `space-y-7` by virtue of
+   being unlayered CSS, which unlayered rules always do regardless of
+   specificity. */
+@layer base {
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box;
+  }
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+  body {
+    margin: 0;
+    background: var(--sidebar-bg);
+    color: var(--ink);
+    font-family: var(--font-body);
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+  img,
+  svg {
+    display: block;
+    max-width: 100%;
+  }
+  a {
+    color: inherit;
+    text-decoration: none;
+  }
+  button {
+    font-family: inherit;
+    cursor: pointer;
+  }
+  ul {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  h1,
+  h2,
+  h3,
+  h4,
+  p {
+    margin: 0;
+  }
 
-:focus-visible {
-  outline: 2px solid var(--lime);
-  outline-offset: 2px;
+  :focus-visible {
+    outline: 2px solid var(--lime);
+    outline-offset: 2px;
+  }
 }
 
 .wrap {
