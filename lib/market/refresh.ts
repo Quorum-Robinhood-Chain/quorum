@@ -1,16 +1,19 @@
 import type { Metric } from '@prisma/client';
 import { prisma } from '@/lib/db';
+import { envJson } from '@/lib/env';
 import {
   fetchChainTvl,
   fetchChainDexVolume,
   fetchProtocolTvl,
 } from './defillama';
 import { fetchMorphoUsdgMarket } from './morpho';
-import { fetchOnchainTokenSnapshots } from './pools';
 import { fetchLatestBlockNumber } from './chain-rpc';
 import { fetchStockTokenPrices } from './stock-tokens';
 import { fetchTokenPrices } from './coingecko';
-import { fetchTrendingTokenQuote } from './blockscout';
+import {
+  fetchDexscreenerPairByAddress,
+  fetchDexscreenerPairByTokenAddress,
+} from './dexscreener';
 
 const DEX_PROTOCOL_SLUGS: Record<string, string> = {
   arcus: 'arcus',
@@ -175,40 +178,64 @@ export async function refreshMarketData(): Promise<RefreshResult> {
     }
   });
 
-  await safely('onchain:token-pools', async () => {
+  // Price, 24h volume and 24h % change for DeFi/meme tokens, read straight
+  // from the exact Dexscreener pair configured for each symbol in
+  // TOKEN_POOL_MAP (the `pool` field — a pair contract address, same kind of
+  // address the "Tokens in this story" link on an article points at). This
+  // replaces the old raw-RPC reserve math + manual swap-log volume sum:
+  // Dexscreener already computes all three numbers for that exact pair, so
+  // what's shown on the site matches what the link goes to.
+  await safely('dexscreener:defi-meme', async () => {
     const tokens = await prisma.token.findMany({
       where: { category: { in: ['defi', 'meme'] }, isTracked: true },
     });
 
     if (tokens.length === 0) return;
 
-    const results = await fetchOnchainTokenSnapshots(
-      tokens.map((t) => t.symbol),
-    );
+    const poolMap = envJson<{ pool: string }>('TOKEN_POOL_MAP');
 
-    for (const result of results) {
-      if (result.error) {
-        errors.push(`onchain:${result.symbol}: ${result.error}`);
+    for (const token of tokens) {
+      const pairAddress = poolMap[token.symbol]?.pool;
+
+      if (!pairAddress) {
+        errors.push(`dexscreener:${token.symbol}: no pool in TOKEN_POOL_MAP`);
         continue;
       }
 
-      if (result.priceUsd != null) {
+      const snap = await fetchDexscreenerPairByAddress(pairAddress);
+
+      if (snap.error) {
+        errors.push(`dexscreener:${token.symbol}: ${snap.error}`);
+        continue;
+      }
+
+      if (snap.priceUsd != null) {
         snapshots.push({
-          scope: `token:${result.symbol}`,
+          scope: `token:${token.symbol}`,
           metric: 'price',
-          value: result.priceUsd,
+          value: snap.priceUsd,
           unit: 'usd',
-          source: 'Robinhood Chain RPC',
+          source: 'Dexscreener',
         });
       }
 
-      if (result.volume24hUsd != null) {
+      if (snap.volume24hUsd != null) {
         snapshots.push({
-          scope: `token:${result.symbol}`,
+          scope: `token:${token.symbol}`,
           metric: 'volume_24h',
-          value: result.volume24hUsd,
+          value: snap.volume24hUsd,
           unit: 'usd',
-          source: 'Robinhood Chain RPC',
+          source: 'Dexscreener',
+        });
+      }
+
+      if (snap.priceChange24hPct != null) {
+        snapshots.push({
+          scope: `token:${token.symbol}`,
+          metric: 'price_change_24h',
+          value: snap.priceChange24hPct,
+          unit: 'pct',
+          source: 'Dexscreener',
         });
       }
     }
@@ -287,7 +314,12 @@ export async function refreshMarketData(): Promise<RefreshResult> {
     }
   });
 
-  await safely('blockscout:trending-tokens', async () => {
+  // Trending tokens only have a bare token contract address (from Blockscout
+  // discovery — see sync-trending-tokens.ts), not a hand-picked pair. Ask
+  // Dexscreener for every pair trading that address and use its most liquid
+  // one — same logic Dexscreener's own token page uses to pick a default
+  // pair, so this lines up with what a reader sees after clicking through.
+  await safely('dexscreener:trending', async () => {
     const tokens = await prisma.token.findMany({
       where: { category: 'trending', isTracked: true },
     });
@@ -297,23 +329,42 @@ export async function refreshMarketData(): Promise<RefreshResult> {
     for (const token of tokens) {
       if (!token.contractAddress) continue;
 
-      const quote = await fetchTrendingTokenQuote(token.contractAddress);
+      const snap = await fetchDexscreenerPairByTokenAddress(
+        token.contractAddress,
+      );
 
-      if (quote.error) {
-        errors.push(`trending:${token.symbol}: ${quote.error}`);
+      if (snap.error) {
+        errors.push(`dexscreener:trending:${token.symbol}: ${snap.error}`);
         continue;
       }
 
-      // No 24h volume here — Blockscout's per-token endpoint gives price +
-      // market cap, not trailing volume. Price alone is enough for the token
-      // to render (see hasData check in lib/presenters/tokens.ts).
-      if (quote.priceUsd != null) {
+      if (snap.priceUsd != null) {
         snapshots.push({
           scope: `token:${token.symbol}`,
           metric: 'price',
-          value: quote.priceUsd,
+          value: snap.priceUsd,
           unit: 'usd',
-          source: 'Blockscout',
+          source: 'Dexscreener',
+        });
+      }
+
+      if (snap.volume24hUsd != null) {
+        snapshots.push({
+          scope: `token:${token.symbol}`,
+          metric: 'volume_24h',
+          value: snap.volume24hUsd,
+          unit: 'usd',
+          source: 'Dexscreener',
+        });
+      }
+
+      if (snap.priceChange24hPct != null) {
+        snapshots.push({
+          scope: `token:${token.symbol}`,
+          metric: 'price_change_24h',
+          value: snap.priceChange24hPct,
+          unit: 'pct',
+          source: 'Dexscreener',
         });
       }
     }

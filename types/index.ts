@@ -55,7 +55,7 @@ export type NetworkStat = {
 };
 
 // Memecoins kept as a separate category, not mixed with Stock/DeFi.
-// `trending` = auto-discovered via Blockscout (lib/market/sync-trending-tokens.ts),
+// `trending` = auto-discovered via Dexscreener (lib/market/sync-trending-tokens.ts),
 // as opposed to stock_token (Robinhood's own catalog) or defi/meme (hand-configured
 // via TOKEN_POOL_MAP).
 export type TokenCategory = 'stock_token' | 'defi' | 'meme' | 'trending';
@@ -66,6 +66,11 @@ export type TokenRow = {
   name: string;
   dex: string;
   category: TokenCategory;
+  // On-chain contract address, when known. Symbols/names are not unique
+  // (anyone can deploy a token called "Morpho" — see lib/market/dexscreener.ts),
+  // so any off-site market link MUST key off this, not off symbol/name alone.
+  // See lib/market/external-links.ts.
+  contractAddress: string | null;
   price: string;
   change24h: string;
   isUp: boolean;

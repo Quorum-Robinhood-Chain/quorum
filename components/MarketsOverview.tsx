@@ -64,14 +64,21 @@ export default async function MarketsOverview() {
         {marketArticles.map((article) => (
           <article
             key={article.id}
-            className="flex flex-col rounded-card border border-line p-4.5"
+            className="group relative flex flex-col rounded-card border border-line p-4.5 transition hover:border-olive/60 hover:shadow-sm"
           >
             <span className="text-[11.5px] font-bold uppercase tracking-wide text-olive">
               {article.category}
             </span>
 
             <h3 className="mt-1.5 text-[16px] font-bold leading-snug text-ink">
-              {article.headline}
+              {/* Stretched link: makes the whole card clickable while keeping
+                  valid HTML (no anchor nested inside another anchor) */}
+              <a
+                href={article.href}
+                className="after:absolute after:inset-0 after:content-[''] group-hover:underline"
+              >
+                {article.headline}
+              </a>
             </h3>
 
             {article.dek && (
@@ -96,7 +103,7 @@ export default async function MarketsOverview() {
                     <span>
                       via{' '}
                       <a
-                        className="hover:underline"
+                        className="relative z-10 hover:underline"
                         href={article.source.url}
                         target="_blank"
                         rel="noopener noreferrer"

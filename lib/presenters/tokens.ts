@@ -32,20 +32,28 @@ export async function getTokensPresentation(): Promise<TokensPresentation> {
     const tokens = await prisma.token.findMany({ where: { isTracked: true } });
     if (tokens.length === 0) return { tokens: fallbackTokens, usingLiveData: false };
 
-    // One query, newest first; the first hit per (scope, metric) is the current value.
-    const rows = await prisma.marketSnapshot.findMany({
-      where: { scope: { startsWith: 'token:' } },
-      orderBy: { timestamp: 'desc' },
-      take: 500,
-    });
-
-    const seen = new Set<string>();
-    const snapshots: Snapshot[] = rows.filter((row) => {
-      const key = `${row.scope}:${row.metric}`;
-      if (seen.has(key)) return false;
-      seen.add(key);
-      return true;
-    });
+    // DISTINCT ON (scope, metric) — the true latest value per token/metric,
+    // with no cap on how many tokens that covers.
+    //
+    // A plain `findMany({ orderBy: timestamp desc, take: 500 })` (the old
+    // approach) caps the *total rows scanned*, not rows-per-token. With
+    // 190+ Stock Tokens alone writing price + volume_24h every 5 minutes,
+    // that's 500+ rows from Stock Tokens by itself — enough to push a
+    // freshly-discovered `trending` token's snapshot out of the window
+    // entirely (worse: every row from one refreshMarketData() run shares
+    // almost the same `timestamp`, so ordering among them isn't even
+    // stable). A token that misses the cut gets `hasData: false` below and
+    // is silently dropped from this list — which also means it drops out
+    // of matchRelatedTokens() in lib/presenters/articles.ts, so a news
+    // story that clearly mentions the token never gets its Dexscreener CA
+    // link. DISTINCT ON removes that cap: it always returns exactly one
+    // (freshest) row per (scope, metric), for every tracked token.
+    const snapshots = await prisma.$queryRaw<Snapshot[]>`
+      SELECT DISTINCT ON (scope, metric) scope, metric, value
+      FROM "MarketSnapshot"
+      WHERE scope LIKE 'token:%'
+      ORDER BY scope, metric, timestamp DESC
+    `;
 
     const priced = tokens
       .map((token) => {
@@ -59,6 +67,7 @@ export async function getTokensPresentation(): Promise<TokensPresentation> {
             symbol: token.symbol,
             name: token.name,
             dex: token.dex ?? '—',
+            contractAddress: token.contractAddress ?? null,
             category: toTokenCategory(token.category),
             price: price != null ? formatUsd(price) : '—',
             change24h: change != null ? formatPct(change) : '—',

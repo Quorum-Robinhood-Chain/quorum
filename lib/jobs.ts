@@ -38,8 +38,9 @@ export async function runJob(job: JobName, forceTemplate?: TemplateType) {
       return syncStockTokens();
     case 'trending-tokens-sync':
       // Auto-discover whatever's actually trading on Robinhood Chain right now via
-      // Blockscout — see lib/market/sync-trending-tokens.ts. No-ops (returns
-      // `skipped`) if BLOCKSCOUT_API_KEY isn't set.
+      // Dexscreener — see lib/market/sync-trending-tokens.ts. No key required;
+      // returns `skipped` (not a failure) if Dexscreener has no candidates for
+      // this chain on a given run.
       return syncTrendingTokens();
     case 'generate':
       return generateArticle(forceTemplate);
