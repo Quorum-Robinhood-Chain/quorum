@@ -18,6 +18,17 @@ const GENERATION_TEMPLATES: TemplateType[] = [
   'tvl_lending_snapshot',
 ];
 
+// Generation runs 4x/hour. Topic choice stays fully random/free — this only
+// guarantees a floor: out of every 4 consecutive articles, at least 1 must
+// be X-sourced (`social_pulse`). Checked by looking at the last 3 articles;
+// if none of them was `social_pulse`, this cycle is forced to be, so no
+// rolling window of 4 can ever end up with zero X-sourced articles.
+const X_QUOTA_WINDOW = 3; // look back this many articles (current one makes 4)
+
+// How far back a social_pulse cycle is allowed to reach for *reused* posts
+// (already used in a previous article) once there isn't enough fresh data.
+const SOCIAL_PULSE_REUSE_WINDOW_MS = 24 * 60 * 60 * 1000; // 24h
+
 interface GatheredData {
   verifiedData: Record<string, unknown>;
   generationInputs: string[];
@@ -25,6 +36,11 @@ interface GatheredData {
   sourceUrls: string[];
   rawItemIds: string[];
   hasEnoughData: boolean;
+  // True only for social_pulse when fresh (unused) posts weren't enough and
+  // the cycle fell back to posts already used in an earlier article. Tells
+  // generateArticle() to swap the "developing story" framing for a
+  // "still the topic of conversation" one instead.
+  isReusedData?: boolean;
 }
 
 interface SnapshotRow {
@@ -169,7 +185,10 @@ async function gatherData(template: TemplateType): Promise<GatheredData> {
     case 'social_pulse': {
       // Raw material only — these never appear to readers as their own "tweet" item,
       // only synthesized into an original story (§6.1 rule 1, §16 template instructions).
-      const posts = await prisma.rawItem.findMany({
+      const MIN_POSTS = 3; // need a genuine "pulse" (multiple accounts/posts),
+      // not a single tweet dressed up as a trend.
+
+      const freshPosts = await prisma.rawItem.findMany({
         where: {
           isRelevant: true,
           usedInArticle: false,
@@ -179,6 +198,32 @@ async function gatherData(template: TemplateType): Promise<GatheredData> {
         take: 12,
         include: { source: true },
       });
+
+      let posts = freshPosts;
+      let isReusedData = false;
+
+      // Not enough fresh (never-used) posts — fall back to posts already
+      // used in an earlier article, as long as they're still within the
+      // reuse window. Still real posts, still attributed — just not new.
+      if (freshPosts.length < MIN_POSTS) {
+        const reusedPosts = await prisma.rawItem.findMany({
+          where: {
+            isRelevant: true,
+            source: { type: 'social' },
+            fetchedAt: {
+              gte: new Date(Date.now() - SOCIAL_PULSE_REUSE_WINDOW_MS),
+            },
+          },
+          orderBy: { fetchedAt: 'desc' },
+          take: 12,
+          include: { source: true },
+        });
+
+        if (reusedPosts.length >= MIN_POSTS) {
+          posts = reusedPosts;
+          isReusedData = true;
+        }
+      }
 
       return {
         verifiedData: {
@@ -192,10 +237,11 @@ async function gatherData(template: TemplateType): Promise<GatheredData> {
         generationInputs: posts.map((p) => `x:@${p.source.handle}:${p.url}`),
         sourceNames: [...new Set(posts.map((p) => `X: @${p.source.handle}`))],
         sourceUrls: posts.map((p) => p.url),
-        rawItemIds: posts.map((p) => p.id),
-        // Need a genuine "pulse" (multiple accounts/posts), not a single tweet
-        // dressed up as a trend.
-        hasEnoughData: posts.length >= 3,
+        // Only mark fresh posts as used — reused posts stay eligible for reuse
+        // again later, and re-marking them wouldn't change anything anyway.
+        rawItemIds: isReusedData ? [] : posts.map((p) => p.id),
+        hasEnoughData: posts.length >= MIN_POSTS,
+        isReusedData,
       };
     }
 
@@ -338,15 +384,36 @@ function autoFlagReason(
   return null;
 }
 
+// Enforce the X-sourced floor: if none of the last X_QUOTA_WINDOW articles
+// was `social_pulse`, force this cycle to be `social_pulse` regardless of
+// the random pick. Otherwise the random pick stands untouched.
+async function applyXQuota(candidate: TemplateType): Promise<TemplateType> {
+  const recent = await prisma.article.findMany({
+    orderBy: { publishedAt: 'desc' },
+    take: X_QUOTA_WINDOW,
+    select: { templateType: true },
+  });
+
+  const xQuotaMet = recent.some(
+    (a) => a.templateType === TEMPLATE_LABELS.social_pulse,
+  );
+
+  return xQuotaMet ? candidate : 'social_pulse';
+}
+
 // Generate an automated draft from verified data and the selected template.
 export async function generateArticle(
   forceTemplate?: TemplateType,
 ): Promise<GenerateResult> {
-  const template =
+  const randomPick =
     forceTemplate ??
     GENERATION_TEMPLATES[
       Math.floor(Math.random() * GENERATION_TEMPLATES.length)
     ];
+
+  const template = forceTemplate
+    ? forceTemplate
+    : await applyXQuota(randomPick);
 
   const data = await gatherData(template);
 
@@ -361,6 +428,17 @@ export async function generateArticle(
   const userMessage = [
     `TEMPLATE: ${TEMPLATE_LABELS[template]}`,
     TEMPLATE_INSTRUCTIONS[template],
+    ...(data.isReusedData
+      ? [
+          '',
+          'DATA FRESHNESS NOTE: every post below was already used in an earlier ' +
+            'article — nothing new came in this cycle. Do NOT frame this as a ' +
+            'developing story: no "BREAKING", no "JUST IN", no "right now" urgency. ' +
+            'Frame it instead as sentiment that is still the topic of conversation ' +
+            '(e.g. "still buzzing about...", "the conversation continues around..."). ' +
+            'The facts and attribution rules still apply as normal.',
+        ]
+      : []),
     '',
     'VERIFIED DATA (the only source of any number you may state):',
     JSON.stringify(data.verifiedData, null, 2),
