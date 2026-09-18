@@ -35,23 +35,25 @@ interface SnapshotRow {
 }
 
 // Fetch the latest snapshot for each scope and metric combination.
+//
+// DISTINCT ON (scope, metric), not a row-capped findMany — a `take: 200`
+// cap counts total rows scanned across every scope under this prefix, not
+// rows per scope. With 190+ Stock Tokens alone writing price + volume_24h
+// every 5-minute tick, `token:` easily produces 200+ rows in a single
+// cycle, which can push a `trending` token's snapshot out of the window
+// before the LLM ever sees it — the same failure mode as
+// lib/presenters/tokens.ts's getTokensPresentation(). DISTINCT ON always
+// returns the freshest row per (scope, metric), regardless of how many
+// scopes exist under the prefix.
 async function latestSnapshots(scopePrefix: string): Promise<SnapshotRow[]> {
-  const rows = await prisma.marketSnapshot.findMany({
-    where: { scope: { startsWith: scopePrefix } },
-    orderBy: { timestamp: 'desc' },
-    take: 200,
-  });
+  const escaped = scopePrefix.replace(/[%_]/g, (c) => `\\${c}`);
 
-  const seen = new Set<string>();
-
-  return rows.filter((row: SnapshotRow) => {
-    const key = `${row.scope}:${row.metric}`;
-
-    if (seen.has(key)) return false;
-
-    seen.add(key);
-    return true;
-  });
+  return prisma.$queryRaw<SnapshotRow[]>`
+    SELECT DISTINCT ON (scope, metric) scope, metric, value, source
+    FROM "MarketSnapshot"
+    WHERE scope LIKE ${escaped + '%'}
+    ORDER BY scope, metric, timestamp DESC
+  `;
 }
 
 const describeSnapshot = (s: SnapshotRow) =>
@@ -70,7 +72,7 @@ async function gatherData(template: TemplateType): Promise<GatheredData> {
       // The scope alone (`token:SYMBOL`) doesn't say which category a token
       // belongs to — look categories up by symbol so stock_token/meme rows
       // can be filtered out entirely (no more stories touching those) and
-      // so "trending" (Blockscout-discovered) tokens can be called out.
+      // so "trending" (Dexscreener-discovered) tokens can be called out.
       const allSymbols = [
         ...new Set(allSnapshots.map((s) => s.scope.replace(/^token:/, ''))),
       ];

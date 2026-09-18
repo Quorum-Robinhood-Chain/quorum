@@ -59,7 +59,8 @@ export default async function ArticlePage({
         )}
 
         {/* Tokens mentioned in this article — link out to a trusted source:
-            Robinhood for Stock Tokens, CoinGecko otherwise. */}
+            TradingView for Stock Tokens, Dexscreener (by contract address)
+            otherwise. See lib/market/external-links.ts. */}
         {article.relatedTokens.length > 0 && (
           <div className="mt-3 flex flex-wrap items-center gap-2">
             <span className="text-xs text-gray-400">Tokens in this story:</span>

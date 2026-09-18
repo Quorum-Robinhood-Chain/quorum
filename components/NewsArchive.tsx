@@ -1,9 +1,12 @@
 'use client';
 
-import { useMemo, useState } from 'react';
-import { Lock } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import { ChevronLeft, ChevronRight, Lock } from 'lucide-react';
 import { ArticleCategory, Article } from '@/types';
 import { CategoryThumb } from '@/lib/categoryVisual';
+
+// How many articles to show per page before paginating.
+const PAGE_SIZE = 10;
 
 export default function NewsArchive({
   articles,
@@ -22,6 +25,9 @@ export default function NewsArchive({
     initialCategory,
   );
 
+  // Track the currently visible page of the (filtered) article list
+  const [page, setPage] = useState(1);
+
   // Filter articles based on the selected category
   const filtered = useMemo(
     () =>
@@ -30,6 +36,15 @@ export default function NewsArchive({
         : articles.filter((a) => a.category === active),
     [active, articles],
   );
+
+  // Jump back to page 1 whenever the category filter changes so we never
+  // land on an out-of-range page for the new, shorter list.
+  useEffect(() => {
+    setPage(1);
+  }, [active]);
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const paginated = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
   return (
     <section className="mx-auto max-w-site px-6 pb-10">
@@ -61,9 +76,9 @@ export default function NewsArchive({
         ))}
       </div>
 
-      {/* Filtered news articles */}
+      {/* Filtered news articles (current page only) */}
       <div className="flex flex-col divide-y divide-line rounded-card border border-line">
-        {filtered.map((article) => (
+        {paginated.map((article) => (
           <a
             key={article.id}
             href={article.href}
@@ -132,6 +147,51 @@ export default function NewsArchive({
           </p>
         )}
       </div>
+
+      {/* Pagination controls — only shown when there's more than one page */}
+      {totalPages > 1 && (
+        <div className="mt-6 flex items-center justify-between gap-4">
+          <button
+            type="button"
+            onClick={() => setPage((p) => Math.max(1, p - 1))}
+            disabled={page === 1}
+            className="flex items-center gap-1 rounded-full border border-line px-3 py-1.5 text-xs font-semibold text-gray-600 transition-colors hover:border-gray-400 disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            <ChevronLeft className="h-3.5 w-3.5" strokeWidth={2.5} />
+            Prev
+          </button>
+
+          <div className="flex items-center gap-1.5">
+            {Array.from({ length: totalPages }, (_, i) => i + 1).map(
+              (pageNumber) => (
+                <button
+                  key={pageNumber}
+                  type="button"
+                  onClick={() => setPage(pageNumber)}
+                  aria-current={pageNumber === page ? 'page' : undefined}
+                  className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-semibold transition-colors ${
+                    pageNumber === page
+                      ? 'bg-ink text-white'
+                      : 'text-gray-600 hover:bg-panel'
+                  }`}
+                >
+                  {pageNumber}
+                </button>
+              ),
+            )}
+          </div>
+
+          <button
+            type="button"
+            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+            disabled={page === totalPages}
+            className="flex items-center gap-1 rounded-full border border-line px-3 py-1.5 text-xs font-semibold text-gray-600 transition-colors hover:border-gray-400 disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            Next
+            <ChevronRight className="h-3.5 w-3.5" strokeWidth={2.5} />
+          </button>
+        </div>
+      )}
     </section>
   );
 }

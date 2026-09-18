@@ -1,3 +1,12 @@
+// Raw on-chain reserve/swap-log math for a DeFi/meme token's price and 24h
+// volume, read directly via RPC from its pool contract.
+//
+// NOT currently called by lib/market/refresh.ts — the live market-data
+// pipeline sources defi/meme price/volume/24h-change from Dexscreener
+// instead (see lib/market/dexscreener.ts), keyed off the same TOKEN_POOL_MAP
+// `pool` address used here, so the numbers on the site match the exact
+// Dexscreener pair the "Tokens in this story" link points to. This file is
+// kept as an RPC-only fallback for local/offline use.
 import { Contract, Interface, type Log } from 'ethers';
 import { getProvider, hasRpcConfigured } from './rpc';
 import { envJson, envNumber } from '@/lib/env';

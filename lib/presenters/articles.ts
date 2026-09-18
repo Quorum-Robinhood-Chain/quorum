@@ -27,11 +27,13 @@ export type RelatedToken = { symbol: string; url: string };
 // table (via getTokensPresentation — same live-DB-with-fallback pattern the
 // /tokens page already uses), so newly added/removed tokens are picked up
 // automatically without touching this file. The link itself points off-site
-// (TradingView for Stock Tokens, CoinGecko otherwise) — see
-// lib/market/external-links.ts.
+// (TradingView for Stock Tokens, Dexscreener via contractAddress otherwise)
+// — see lib/market/external-links.ts. contractAddress is required here (not
+// just symbol/category) so that link doesn't fall back to a name search that
+// can resolve to a different token with the same symbol.
 function matchRelatedTokens(
   text: string,
-  tokens: Pick<TokenRow, 'symbol' | 'category'>[],
+  tokens: Pick<TokenRow, 'symbol' | 'category' | 'contractAddress'>[],
 ): RelatedToken[] {
   const found = new Map<string, string>();
 
@@ -221,7 +223,8 @@ export interface ArticleDetail {
   requiredBalance: number;
 
   /** Tokens mentioned in the headline/dek/body, each with a trusted off-site
-   *  link (TradingView for Stock Tokens, CoinGecko otherwise). Inferred from
+   *  link (TradingView for Stock Tokens, Dexscreener by contract address
+   *  otherwise). Inferred from
    *  text — see matchRelatedTokens — not a stored relation. */
   relatedTokens: RelatedToken[];
 }
