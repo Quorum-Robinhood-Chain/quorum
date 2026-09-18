@@ -1,5 +1,6 @@
 import { getTokensPresentation } from '@/lib/presenters/tokens';
 import { tokenCategoryLabels } from '@/data/tokens';
+import { externalTokenUrl } from '@/lib/market/external-links';
 import { TokenCategory } from '@/types';
 
 const CATEGORY_ORDER: TokenCategory[] = ['trending', 'defi'];
@@ -43,7 +44,15 @@ export default async function TokensSection() {
           if (rows.length === 0) return null;
 
           // Tokens that already have a price take priority over ones still
-          // showing "—", and we only ever show the top 10.
+          // showing "—", and we only ever show the top 10. trendingTokens
+          // (from getTokensPresentation()) is already sorted by volume, so
+          // this re-sort only breaks ties on "has a price yet" — the
+          // top-10 cap is a display cap, not a ranking decision: whichever
+          // curated `defi` tokens are moving the most right now (or newly
+          // discovered `trending` tokens) surface automatically, with no
+          // need to hand-edit anything when rankings shift. Only which
+          // tokens are eligible at all stays manual (prisma/seed.ts for
+          // defi — see lib/market/external-links.ts).
           rows = [...rows]
             .sort((a, b) => Number(b.price !== '—') - Number(a.price !== '—'))
             .slice(0, 10);
@@ -61,8 +70,11 @@ export default async function TokensSection() {
                   genuinely flowing down, not a wide short grid. */}
               <div className="grid grid-flow-col grid-rows-5 auto-cols-fr gap-2.5">
                 {rows.map((token, index) => (
-                  <div
+                  <a
                     key={token.id}
+                    href={externalTokenUrl(token)}
+                    target="_blank"
+                    rel="noopener noreferrer"
                     className="group relative flex flex-col justify-between gap-3 rounded-card border border-line bg-white px-3.5 py-4 transition-colors duration-200 hover:border-olive hover:bg-olive"
                   >
                     <span className="absolute right-2 top-2 flex h-6 w-6 items-center justify-center rounded-full bg-ink text-[11px] font-bold text-white transition-colors duration-200 group-hover:bg-white group-hover:text-olive">
@@ -96,7 +108,7 @@ export default async function TokensSection() {
                         {token.change24h}
                       </div>
                     </div>
-                  </div>
+                  </a>
                 ))}
               </div>
             </div>

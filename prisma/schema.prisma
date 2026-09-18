@@ -89,6 +89,14 @@ model Token {
   symbol          String
   name            String
   contractAddress String?
+  // Chain this contractAddress actually lives on, as a Dexscreener chain
+  // slug (e.g. "robinhood", "ethereum", "solana", "base", "arbitrum",
+  // "arc"). NULL means "robinhood" (the default for every token that
+  // predates this column — trending/meme entries sourced from Robinhood
+  // Chain discovery, defi entries that were never given a bridged/off-chain
+  // address). Required because the same ticker can have a real, differently
+  // priced contract on several chains — see lib/market/external-links.ts.
+  chainSlug       String?
   dex             String?
   category        TokenCategory
   // CoinGecko coin id (not the ticker). Lets a listed token get price + 24h change
@@ -105,7 +113,7 @@ enum TokenCategory {
   meme
   defi
   other
-  trending // auto-discovered via Blockscout — see lib/market/sync-trending-tokens.ts
+  trending // auto-discovered via Dexscreener — see lib/market/sync-trending-tokens.ts
 }
 
 // ── Generated / curated articles (§10, §8.6) ───────────────────────────────

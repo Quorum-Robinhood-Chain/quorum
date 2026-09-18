@@ -71,6 +71,9 @@ export type TokenRow = {
   // so any off-site market link MUST key off this, not off symbol/name alone.
   // See lib/market/external-links.ts.
   contractAddress: string | null;
+  // Dexscreener chain slug that contractAddress lives on (e.g. "robinhood",
+  // "ethereum", "solana"). null means "robinhood" — see external-links.ts.
+  chainSlug: string | null;
   price: string;
   change24h: string;
   isUp: boolean;
