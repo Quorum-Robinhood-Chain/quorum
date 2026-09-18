@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import LearnSection from '@/components/LearnSection';
+import Reveal from '@/components/motion/Reveal';
 
 export const metadata: Metadata = {
   title: 'Learn — Quorum',
@@ -11,7 +12,9 @@ export default function LearnPage() {
   return (
     <main>
       {/* Educational content and explainers */}
-      <LearnSection />
+      <Reveal>
+        <LearnSection />
+      </Reveal>
     </main>
   );
 }

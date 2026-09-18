@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import EcosystemGrid from '@/components/EcosystemGrid';
+import Reveal from '@/components/motion/Reveal';
 
 // Protocol integrations and TVL change far less often than articles or
 // market snapshots — cache longer.
@@ -21,7 +22,9 @@ export default function EcosystemPage() {
       </div>
 
       {/* Ecosystem protocols and latest news */}
-      <EcosystemGrid />
+      <Reveal>
+        <EcosystemGrid />
+      </Reveal>
     </main>
   );
 }

@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import TokensSection from '@/components/TokensSection';
+import Reveal from '@/components/motion/Reveal';
 
 // Token prices refresh on the same ~5 min market cycle (see cron.yml).
 export const revalidate = 120;
@@ -17,7 +18,9 @@ export default function TokensPage() {
         Not financial advice. Quorum is independent and not affiliated with
         Robinhood Markets, Inc.
       </div>
-      <TokensSection />
+      <Reveal>
+        <TokensSection />
+      </Reveal>
     </main>
   );
 }

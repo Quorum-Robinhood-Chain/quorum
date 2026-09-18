@@ -4,6 +4,7 @@ import MarketsSection from '@/components/MarketsSection';
 import NewsList from '@/components/NewsList';
 import Sidebar from '@/components/Sidebar';
 import CtaBanner from '@/components/CtaBanner';
+import Reveal from '@/components/motion/Reveal';
 
 // Articles regenerate every ~30 min and market snapshots every ~5 min (see
 // cron.yml), so a fresh DB hit on every single request is wasted work.
@@ -26,25 +27,31 @@ export default function Home() {
       </div>
 
       {/* Market overview */}
-      <Suspense fallback={<div className="min-h-[240px]" />}>
-        <MarketsSection />
-      </Suspense>
+      <Reveal>
+        <Suspense fallback={<div className="min-h-[240px]" />}>
+          <MarketsSection />
+        </Suspense>
+      </Reveal>
 
       {/* Latest news and ecosystem sidebar — each fetches its own data, so
           each gets its own boundary rather than blocking on the other. */}
-      <section className="wrap" id="ecosystem">
-        <div className="content-grid">
-          <Suspense fallback={<div className="min-h-[480px]" />}>
-            <NewsList />
-          </Suspense>
-          <Suspense fallback={<div className="min-h-[480px]" />}>
-            <Sidebar />
-          </Suspense>
-        </div>
-      </section>
+      <Reveal>
+        <section className="wrap" id="ecosystem">
+          <div className="content-grid">
+            <Suspense fallback={<div className="min-h-[480px]" />}>
+              <NewsList />
+            </Suspense>
+            <Suspense fallback={<div className="min-h-[480px]" />}>
+              <Sidebar />
+            </Suspense>
+          </div>
+        </section>
+      </Reveal>
 
       {/* Call-to-action banner */}
-      <CtaBanner />
+      <Reveal>
+        <CtaBanner />
+      </Reveal>
     </main>
   );
 }

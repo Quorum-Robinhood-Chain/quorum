@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import MarketsOverview from '@/components/MarketsOverview';
+import Reveal from '@/components/motion/Reveal';
 
 // Market snapshots refresh every ~5 min (see cron.yml) — no need to hit
 // the DB on every single request.
@@ -21,7 +22,9 @@ export default function MarketsPage() {
       </div>
 
       {/* Market statistics and latest market news */}
-      <MarketsOverview />
+      <Reveal>
+        <MarketsOverview />
+      </Reveal>
     </main>
   );
 }
