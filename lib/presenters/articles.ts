@@ -22,7 +22,7 @@ export type RelatedToken = { symbol: string; url: string };
 
 // Articles have no DB column linking them to a token (see prisma/schema.prisma) —
 // so "which token is this about" is inferred by scanning the text for a known
-// symbol, e.g. "AAPLx" or "USDG". Cheap, no migration needed, good enough for a
+// symbol, e.g. "AAPL" or "USDG". Cheap, no migration needed, good enough for a
 // "check this token" link. Matched against `tokens`, the app's live Token
 // table (via getTokensPresentation — same live-DB-with-fallback pattern the
 // /tokens page already uses), so newly added/removed tokens are picked up

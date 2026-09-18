@@ -2,7 +2,7 @@ import { getTokensPresentation } from '@/lib/presenters/tokens';
 import { tokenCategoryLabels } from '@/data/tokens';
 import { TokenCategory } from '@/types';
 
-const CATEGORY_ORDER: TokenCategory[] = ['stock_token', 'defi'];
+const CATEGORY_ORDER: TokenCategory[] = ['trending', 'defi'];
 
 export default async function TokensSection() {
   // Fetch token data and live feed status
@@ -35,8 +35,16 @@ export default async function TokensSection() {
       {/* Tokens grouped by category — original stacked-list layout, now stretched full width */}
       <div className="grid gap-8 lg:grid-cols-2">
         {CATEGORY_ORDER.map((category) => {
-          const rows = trendingTokens.filter((t) => t.category === category);
+          let rows = trendingTokens.filter((t) => t.category === category);
           if (rows.length === 0) return null;
+
+          // Trending: tokens that already have a price take priority over
+          // ones still showing "—", and we only ever show the top 10.
+          if (category === 'trending') {
+            rows = [...rows]
+              .sort((a, b) => Number(b.price !== '—') - Number(a.price !== '—'))
+              .slice(0, 10);
+          }
 
           return (
             <div key={category}>
@@ -85,13 +93,6 @@ export default async function TokensSection() {
           );
         })}
       </div>
-
-      {/* Data source and financial disclaimer */}
-      <p className="mt-6 text-xs text-gray-400">
-        Prices and volume refresh independently of the article pipeline. Not
-        financial advice — token prices are volatile and this is not a
-        recommendation to buy or sell.
-      </p>
     </section>
   );
 }

@@ -4,7 +4,7 @@ export const trendingTokens: TokenRow[] = [
   // Top 10 Stock Tokens by 24h volume
   {
     id: 'tok-1',
-    symbol: 'AAPLx',
+    symbol: 'AAPL',
     name: 'Apple Stock Token',
     dex: 'Chainlink feed',
     category: 'stock_token',
@@ -15,7 +15,7 @@ export const trendingTokens: TokenRow[] = [
   },
   {
     id: 'tok-2',
-    symbol: 'NVDAx',
+    symbol: 'NVDA',
     name: 'Nvidia Stock Token',
     dex: 'Chainlink feed',
     category: 'stock_token',
@@ -26,7 +26,7 @@ export const trendingTokens: TokenRow[] = [
   },
   {
     id: 'tok-3',
-    symbol: 'TSLAx',
+    symbol: 'TSLA',
     name: 'Tesla Stock Token',
     dex: 'Chainlink feed',
     category: 'stock_token',
@@ -37,7 +37,7 @@ export const trendingTokens: TokenRow[] = [
   },
   {
     id: 'tok-4',
-    symbol: 'HOODx',
+    symbol: 'HOOD',
     name: 'Robinhood Stock Token',
     dex: 'Chainlink feed',
     category: 'stock_token',
@@ -48,7 +48,7 @@ export const trendingTokens: TokenRow[] = [
   },
   {
     id: 'tok-5',
-    symbol: 'MSFTx',
+    symbol: 'MSFT',
     name: 'Microsoft Stock Token',
     dex: 'Chainlink feed',
     category: 'stock_token',
@@ -59,7 +59,7 @@ export const trendingTokens: TokenRow[] = [
   },
   {
     id: 'tok-6',
-    symbol: 'AMZNx',
+    symbol: 'AMZN',
     name: 'Amazon Stock Token',
     dex: 'Chainlink feed',
     category: 'stock_token',
@@ -70,7 +70,7 @@ export const trendingTokens: TokenRow[] = [
   },
   {
     id: 'tok-7',
-    symbol: 'GOOGLx',
+    symbol: 'GOOGL',
     name: 'Alphabet Stock Token',
     dex: 'Chainlink feed',
     category: 'stock_token',
@@ -81,7 +81,7 @@ export const trendingTokens: TokenRow[] = [
   },
   {
     id: 'tok-8',
-    symbol: 'METAx',
+    symbol: 'META',
     name: 'Meta Stock Token',
     dex: 'Chainlink feed',
     category: 'stock_token',
@@ -92,7 +92,7 @@ export const trendingTokens: TokenRow[] = [
   },
   {
     id: 'tok-9',
-    symbol: 'COINx',
+    symbol: 'COIN',
     name: 'Coinbase Stock Token',
     dex: 'Chainlink feed',
     category: 'stock_token',
@@ -103,7 +103,7 @@ export const trendingTokens: TokenRow[] = [
   },
   {
     id: 'tok-10',
-    symbol: 'AMDx',
+    symbol: 'AMD',
     name: 'AMD Stock Token',
     dex: 'Chainlink feed',
     category: 'stock_token',
@@ -230,4 +230,5 @@ export const tokenCategoryLabels: Record<string, string> = {
   stock_token: 'Stock Tokens',
   defi: 'DeFi',
   meme: 'Memecoins',
+  trending: 'Trending',
 };

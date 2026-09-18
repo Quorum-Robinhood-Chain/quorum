@@ -55,7 +55,10 @@ export type NetworkStat = {
 };
 
 // Memecoins kept as a separate category, not mixed with Stock/DeFi.
-export type TokenCategory = 'stock_token' | 'defi' | 'meme';
+// `trending` = auto-discovered via Blockscout (lib/market/sync-trending-tokens.ts),
+// as opposed to stock_token (Robinhood's own catalog) or defi/meme (hand-configured
+// via TOKEN_POOL_MAP).
+export type TokenCategory = 'stock_token' | 'defi' | 'meme' | 'trending';
 
 export type TokenRow = {
   id: string;
