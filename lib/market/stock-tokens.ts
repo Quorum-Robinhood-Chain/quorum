@@ -1,82 +1,22 @@
 import { Contract } from 'ethers';
 import { getProvider, hasRpcConfigured } from './rpc';
-import { env, envJson } from '@/lib/env';
+import { fetchStockTokenQuotes } from './robinhood-assets';
 
 const ERC20_ABI = ['function decimals() view returns (uint8)'];
-
-// Convert a stock token symbol to its underlying ticker.
-function toUnderlyingTicker(symbol: string): string {
-  return symbol.endsWith('x') ? symbol.slice(0, -1) : symbol;
-}
 
 export interface StockTokenPrice {
   symbol: string;
   priceUsd: number | null;
-  changePct24h: number | null;
+  dailyTradingVolumeUsd: number | null;
+  isTradingHalt: boolean;
   updatedAt: Date | null;
   error?: string;
   warning?: string;
 }
 
-interface FinnhubQuote {
-  c?: number;
-  dp?: number;
-  t?: number;
-}
-
-// Fetch the underlying stock price and 24-hour change from Finnhub.
-async function fetchUnderlyingPrice(ticker: string): Promise<{
-  price: number | null;
-  changePct: number | null;
-  error?: string;
-}> {
-  const apiKey = env('FINNHUB_API_KEY');
-
-  if (!apiKey) {
-    return {
-      price: null,
-      changePct: null,
-      error: 'FINNHUB_API_KEY not configured',
-    };
-  }
-
-  try {
-    const url = `https://finnhub.io/api/v1/quote?symbol=${encodeURIComponent(ticker)}&token=${apiKey}`;
-    const res = await fetch(url, { cache: 'no-store' });
-
-    if (!res.ok) {
-      return {
-        price: null,
-        changePct: null,
-        error: `Finnhub HTTP ${res.status}`,
-      };
-    }
-
-    const data = (await res.json()) as FinnhubQuote;
-
-    // Finnhub may return HTTP 200 with c: 0 for an unknown or unsupported symbol.
-    if (!Number.isFinite(data.c) || data.c === 0) {
-      return {
-        price: null,
-        changePct: null,
-        error: `Finnhub: no quote for "${ticker}"`,
-      };
-    }
-
-    return {
-      price: data.c as number,
-      changePct: Number.isFinite(data.dp) ? (data.dp as number) : null,
-    };
-  } catch (err) {
-    return {
-      price: null,
-      changePct: null,
-      error: (err as Error).message,
-    };
-  }
-}
-
-// Verify that the configured stock token contract is accessible on-chain.
+// Verify that the given stock token contract is accessible on-chain. `contractAddress`
+// comes from the Token row, which is synced from Robinhood's own /rhj/assets catalog
+// (see lib/market/sync-stock-tokens.ts) — no separate STOCK_TOKEN_MAP env var needed.
 async function verifyContract(
   address: string,
 ): Promise<{ ok: boolean; error?: string }> {
@@ -90,53 +30,50 @@ async function verifyContract(
   }
 }
 
-// Fetch the price and on-chain status for a single stock token.
-export async function fetchStockTokenPrice(
-  symbol: string,
-): Promise<StockTokenPrice> {
-  const ticker = toUnderlyingTicker(symbol);
-  const contracts = envJson<string>('STOCK_TOKEN_MAP');
-  const address = contracts[ticker] ?? contracts[symbol];
-
-  if (!address) {
-    return {
-      symbol,
-      priceUsd: null,
-      changePct24h: null,
-      updatedAt: null,
-      error: `no contract configured for "${ticker}"`,
-    };
-  }
-
-  const onchain = await verifyContract(address);
-  const { price, changePct, error } = await fetchUnderlyingPrice(ticker);
-
-  if (price == null) {
-    return {
-      symbol,
-      priceUsd: null,
-      changePct24h: null,
-      updatedAt: null,
-      error: onchain.ok
-        ? error
-        : `${error} (also: onchain check failed — ${onchain.error})`,
-    };
-  }
-
-  return {
-    symbol,
-    priceUsd: price,
-    changePct24h: changePct,
-    updatedAt: new Date(),
-    ...(onchain.ok
-      ? {}
-      : { warning: `onchain check failed — ${onchain.error}` }),
-  };
+export interface TrackedStockToken {
+  symbol: string;
+  contractAddress: string | null;
 }
 
-// Fetch stock token prices in parallel.
+// Fetch live prices for a set of tracked stock tokens from Robinhood's own pricing
+// API (see lib/market/robinhood-assets.ts) — no Finnhub / third-party key needed.
+// Note: this endpoint does not return a 24h % change; compute that from this
+// project's own price-history (MarketSnapshot rows) instead — see refresh.ts.
 export async function fetchStockTokenPrices(
-  symbols: string[],
+  tokens: TrackedStockToken[],
 ): Promise<StockTokenPrice[]> {
-  return Promise.all(symbols.map(fetchStockTokenPrice));
+  const quotes = await fetchStockTokenQuotes(tokens.map((t) => t.symbol));
+  const bySymbol = new Map(quotes.map((q) => [q.symbol, q]));
+
+  return Promise.all(
+    tokens.map(async (token): Promise<StockTokenPrice> => {
+      const quote = bySymbol.get(token.symbol);
+
+      if (!quote || quote.error || quote.priceUsd == null) {
+        return {
+          symbol: token.symbol,
+          priceUsd: null,
+          dailyTradingVolumeUsd: null,
+          isTradingHalt: false,
+          updatedAt: null,
+          error: quote?.error ?? 'no quote returned',
+        };
+      }
+
+      const onchain = token.contractAddress
+        ? await verifyContract(token.contractAddress)
+        : { ok: true };
+
+      return {
+        symbol: token.symbol,
+        priceUsd: quote.priceUsd,
+        dailyTradingVolumeUsd: quote.dailyTradingVolumeUsd,
+        isTradingHalt: quote.isTradingHalt,
+        updatedAt: new Date(),
+        ...(onchain.ok
+          ? {}
+          : { warning: `onchain check failed — ${onchain.error}` }),
+      };
+    }),
+  );
 }

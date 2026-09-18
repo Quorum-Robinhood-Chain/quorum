@@ -16,16 +16,32 @@ name: Quorum scheduled jobs
 #                       actually fixes the timeouts rather than working around
 #                       them.
 #
+#   stock-tokens-sync,  also run on this runner (job "run-direct-light") — both
+#   trending-tokens-sync exceed Vercel's 10s budget (stock-tokens-sync fetches a
+#                       quote for every active symbol, 190+ as of Sept 2026;
+#                       trending-tokens-sync fetches Blockscout's full token
+#                       list). Neither needs MiMo or RPC secrets, so they're a
+#                       separate, lighter job group from generate/weekly-digest.
+#                       stock-tokens-sync runs once a day (the official catalog
+#                       and top-10-by-volume ranking both change slowly).
+#                       trending-tokens-sync runs every 6 hours since "what's
+#                       happening now" goes stale faster — the 5-minute `market`
+#                       job still handles re-pricing whichever ones are already
+#                       tracked either way (see lib/market/refresh.ts).
+#
 # Required repo secrets (Settings → Secrets and variables → Actions):
 #   SITE_URL             e.g. https://quorum.example.com (no trailing slash) — used by ingest/market
 #   CRON_TRIGGER_SECRET  same value as CRON_TRIGGER_SECRET in Vercel env vars — used by ingest/market
-#   DATABASE_URL         same pooled (pgbouncer) connection string as Vercel   — used by generate/weekly-digest
-#   DIRECT_URL           same value as in Vercel                              — used by generate/weekly-digest
+#   DATABASE_URL         same pooled (pgbouncer) connection string as Vercel   — used by generate/weekly-digest/stock-tokens-sync
+#   DIRECT_URL           same value as in Vercel                              — used by generate/weekly-digest/stock-tokens-sync
 #   MIMO_API_KEY         same value as in Vercel                              — used by generate/weekly-digest
 #   MIMO_BASE_URL        optional, same value as in Vercel if set             — used by generate/weekly-digest
 #   MIMO_MODEL           optional, same value as in Vercel if set             — used by generate/weekly-digest
 #   RHC_RPC_URL          same value as in Vercel (needed by the              — used by generate/weekly-digest
 #                        new_token_launches template's chain-rpc lookup)
+#   BLOCKSCOUT_API_KEY   optional — same value as in Vercel. Omit to leave     — used by trending-tokens-sync
+#                        trending-tokens-sync as a no-op (get a free key at
+#                        https://dev.blockscout.com)
 #
 # Note: GitHub's scheduler is best-effort — during high platform load, runs can be
 # delayed by several minutes (occasionally more). Fine for this use case, but don't
@@ -45,18 +61,22 @@ on:
   schedule:
     - cron: '*/20 * * * *' # ingest — RSS + X (Apify)
     - cron: '*/5 * * * *'  # market — on-chain/off-chain data refresh
+    - cron: '0 6 * * *'    # stock-tokens-sync — daily catalog + top-10 refresh
+    - cron: '0 */6 * * *'  # trending-tokens-sync — Blockscout discovery, every 6h
     - cron: '*/30 * * * *' # generate — automated article generation
     - cron: '0 9 * * 5'    # weekly-digest — Fridays 09:00 UTC
   workflow_dispatch:
     inputs:
       job:
-        description: 'Job to run (ingest, market, generate, weekly-digest)'
+        description: 'Job to run (ingest, market, stock-tokens-sync, trending-tokens-sync, generate, weekly-digest)'
         required: true
         default: 'ingest'
         type: choice
         options:
           - ingest
           - market
+          - stock-tokens-sync
+          - trending-tokens-sync
           - generate
           - weekly-digest
 
@@ -72,6 +92,8 @@ jobs:
           case "${{ github.event.schedule }}" in
             '*/20 * * * *') echo "name=ingest" >> "$GITHUB_OUTPUT" ;;
             '*/5 * * * *')  echo "name=market" >> "$GITHUB_OUTPUT" ;;
+            '0 6 * * *')    echo "name=stock-tokens-sync" >> "$GITHUB_OUTPUT" ;;
+            '0 */6 * * *')  echo "name=trending-tokens-sync" >> "$GITHUB_OUTPUT" ;;
             '*/30 * * * *') echo "name=generate" >> "$GITHUB_OUTPUT" ;;
             '0 9 * * 5')    echo "name=weekly-digest" >> "$GITHUB_OUTPUT" ;;
             *)              echo "name=${{ github.event.inputs.job }}" >> "$GITHUB_OUTPUT" ;;
@@ -138,6 +160,49 @@ jobs:
 
       # Dependencies only — no `next build`, since this script never touches
       # the Next.js app itself, only the shared lib/ modules.
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate Prisma client
+        run: npx prisma generate
+
+      - name: Run ${{ needs.resolve.outputs.job }}
+        run: npx tsx scripts/run-job.ts ${{ needs.resolve.outputs.job }}
+
+  # stock-tokens-sync / trending-tokens-sync: same reason as run-direct (exceeds
+  # Vercel's 10s budget), but neither touches MiMo or RPC — kept as its own
+  # lighter secret set. BLOCKSCOUT_API_KEY is only required for
+  # trending-tokens-sync; leaving it unset just makes that job a no-op
+  # (it reports `skipped` instead of failing) — no need to gate on it below.
+  run-direct-light:
+    needs: resolve
+    if: contains(fromJSON('["stock-tokens-sync", "trending-tokens-sync"]'), needs.resolve.outputs.job)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      DIRECT_URL: ${{ secrets.DIRECT_URL }}
+      BLOCKSCOUT_API_KEY: ${{ secrets.BLOCKSCOUT_API_KEY }}
+      BLOCKSCOUT_CHAIN_ID: ${{ secrets.BLOCKSCOUT_CHAIN_ID }}
+      BLOCKSCOUT_MIN_HOLDERS: ${{ secrets.BLOCKSCOUT_MIN_HOLDERS }}
+    steps:
+      - name: Check required secrets
+        run: |
+          missing=()
+          [ -z "$DATABASE_URL" ] && missing+=(DATABASE_URL)
+          [ -z "$DIRECT_URL" ] && missing+=(DIRECT_URL)
+          if [ ${#missing[@]} -gt 0 ]; then
+            echo "::error::Missing repo secret(s): ${missing[*]}"
+            exit 1
+          fi
+
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
       - name: Install dependencies
         run: npm ci
 

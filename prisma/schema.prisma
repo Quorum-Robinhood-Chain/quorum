@@ -105,6 +105,7 @@ enum TokenCategory {
   meme
   defi
   other
+  trending // auto-discovered via Blockscout — see lib/market/sync-trending-tokens.ts
 }
 
 // ── Generated / curated articles (§10, §8.6) ───────────────────────────────

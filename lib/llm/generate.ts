@@ -9,12 +9,12 @@ import {
 import { fetchNewPairsSince } from '@/lib/market/chain-rpc';
 
 // Rotated every generation cycle (every 30 minutes by default — see vercel.json).
+// `stock_token_movers` intentionally left out — no more stock-token stories.
 const GENERATION_TEMPLATES: TemplateType[] = [
   'trending_dex_tokens',
   'new_token_launches',
   'ecosystem_roundup',
   'social_pulse',
-  'stock_token_movers',
   'tvl_lending_snapshot',
 ];
 
@@ -65,7 +65,30 @@ const uniqueSources = (rows: SnapshotRow[]): string[] => [
 async function gatherData(template: TemplateType): Promise<GatheredData> {
   switch (template) {
     case 'trending_dex_tokens': {
-      const snapshots = await latestSnapshots('token:');
+      const allSnapshots = await latestSnapshots('token:');
+
+      // The scope alone (`token:SYMBOL`) doesn't say which category a token
+      // belongs to — look categories up by symbol so stock_token/meme rows
+      // can be filtered out entirely (no more stories touching those) and
+      // so "trending" (Blockscout-discovered) tokens can be called out.
+      const allSymbols = [
+        ...new Set(allSnapshots.map((s) => s.scope.replace(/^token:/, ''))),
+      ];
+      const allTokenRows = allSymbols.length
+        ? await prisma.token.findMany({
+            where: { symbol: { in: allSymbols } },
+            select: { symbol: true, category: true },
+          })
+        : [];
+      const categoryBySymbol = new Map(
+        allTokenRows.map((t) => [t.symbol, t.category]),
+      );
+
+      const EXCLUDED_CATEGORIES = new Set(['stock_token', 'meme']);
+      const snapshots = allSnapshots.filter((s) => {
+        const category = categoryBySymbol.get(s.scope.replace(/^token:/, ''));
+        return category == null || !EXCLUDED_CATEGORIES.has(category);
+      });
 
       return {
         verifiedData: {
@@ -74,6 +97,8 @@ async function gatherData(template: TemplateType): Promise<GatheredData> {
             metric: s.metric,
             value: s.value,
             source: s.source,
+            category:
+              categoryBySymbol.get(s.scope.replace(/^token:/, '')) ?? null,
           })),
         },
         generationInputs: snapshots.map(describeSnapshot),
@@ -162,9 +187,7 @@ async function gatherData(template: TemplateType): Promise<GatheredData> {
             url: p.url,
           })),
         },
-        generationInputs: posts.map(
-          (p) => `x:@${p.source.handle}:${p.url}`,
-        ),
+        generationInputs: posts.map((p) => `x:@${p.source.handle}:${p.url}`),
         sourceNames: [...new Set(posts.map((p) => `X: @${p.source.handle}`))],
         sourceUrls: posts.map((p) => p.url),
         rawItemIds: posts.map((p) => p.id),
@@ -319,7 +342,9 @@ export async function generateArticle(
 ): Promise<GenerateResult> {
   const template =
     forceTemplate ??
-    GENERATION_TEMPLATES[Math.floor(Math.random() * GENERATION_TEMPLATES.length)];
+    GENERATION_TEMPLATES[
+      Math.floor(Math.random() * GENERATION_TEMPLATES.length)
+    ];
 
   const data = await gatherData(template);
 

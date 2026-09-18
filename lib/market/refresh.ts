@@ -10,6 +10,7 @@ import { fetchOnchainTokenSnapshots } from './pools';
 import { fetchLatestBlockNumber } from './chain-rpc';
 import { fetchStockTokenPrices } from './stock-tokens';
 import { fetchTokenPrices } from './coingecko';
+import { fetchTrendingTokenQuote } from './blockscout';
 
 const DEX_PROTOCOL_SLUGS: Record<string, string> = {
   arcus: 'arcus',
@@ -220,7 +221,26 @@ export async function refreshMarketData(): Promise<RefreshResult> {
 
     if (tokens.length === 0) return;
 
-    const prices = await fetchStockTokenPrices(tokens.map((t) => t.symbol));
+    const prices = await fetchStockTokenPrices(
+      tokens.map((t) => ({ symbol: t.symbol, contractAddress: t.contractAddress })),
+    );
+
+    // Robinhood's official /rhj/prices endpoint gives a live bid/ask but no 24h %
+    // change, so derive it from this project's own price history: compare against
+    // the snapshot closest to 24h ago for the same scope.
+    const dayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    const priorSnapshots = await prisma.marketSnapshot.findMany({
+      where: {
+        scope: { in: tokens.map((t) => `token:${t.symbol}`) },
+        metric: 'price',
+        timestamp: { lte: dayAgo },
+      },
+      orderBy: { timestamp: 'desc' },
+    });
+    const priorPriceByScope = new Map<string, number>();
+    for (const row of priorSnapshots) {
+      if (!priorPriceByScope.has(row.scope)) priorPriceByScope.set(row.scope, row.value);
+    }
 
     for (const price of prices) {
       if (price.error) {
@@ -240,17 +260,60 @@ export async function refreshMarketData(): Promise<RefreshResult> {
           metric: 'price',
           value: price.priceUsd,
           unit: 'usd',
-          source: 'Finnhub / on-chain contract',
+          source: 'Robinhood Chain (official API)',
         });
+
+        const priorPrice = priorPriceByScope.get(`token:${price.symbol}`);
+        if (priorPrice != null && priorPrice > 0) {
+          snapshots.push({
+            scope: `token:${price.symbol}`,
+            metric: 'price_change_24h',
+            value: ((price.priceUsd - priorPrice) / priorPrice) * 100,
+            unit: 'pct',
+            source: 'Quorum (derived from own price history)',
+          });
+        }
       }
 
-      if (price.changePct24h != null) {
+      if (price.dailyTradingVolumeUsd != null) {
         snapshots.push({
           scope: `token:${price.symbol}`,
-          metric: 'price_change_24h',
-          value: price.changePct24h,
-          unit: 'pct',
-          source: 'Finnhub',
+          metric: 'volume_24h',
+          value: price.dailyTradingVolumeUsd,
+          unit: 'usd',
+          source: 'Robinhood Chain (official API)',
+        });
+      }
+    }
+  });
+
+  await safely('blockscout:trending-tokens', async () => {
+    const tokens = await prisma.token.findMany({
+      where: { category: 'trending', isTracked: true },
+    });
+
+    if (tokens.length === 0) return;
+
+    for (const token of tokens) {
+      if (!token.contractAddress) continue;
+
+      const quote = await fetchTrendingTokenQuote(token.contractAddress);
+
+      if (quote.error) {
+        errors.push(`trending:${token.symbol}: ${quote.error}`);
+        continue;
+      }
+
+      // No 24h volume here — Blockscout's per-token endpoint gives price +
+      // market cap, not trailing volume. Price alone is enough for the token
+      // to render (see hasData check in lib/presenters/tokens.ts).
+      if (quote.priceUsd != null) {
+        snapshots.push({
+          scope: `token:${token.symbol}`,
+          metric: 'price',
+          value: quote.priceUsd,
+          unit: 'usd',
+          source: 'Blockscout',
         });
       }
     }

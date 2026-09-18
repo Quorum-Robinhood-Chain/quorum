@@ -84,7 +84,7 @@ export const TEMPLATE_LABELS: Record<TemplateType, string> = {
 // Writing instructions specific to each article template.
 export const TEMPLATE_INSTRUCTIONS: Record<TemplateType, string> = {
   trending_dex_tokens:
-    "Write a 'trending tokens' story: which tokens led 24h DEX volume and by how much, using only the VERIFIED DATA token list. Call out the split between Stock Tokens/DeFi tokens and memecoins if both are present, without editorializing that memecoins are bad — just label them clearly.",
+    "Write a 'trending tokens' story: which tokens led 24h DEX volume and by how much, using only the VERIFIED DATA token list (Stock Tokens and memecoins are intentionally excluded from this dataset — do not mention or speculate about them). Each token's `category` field tells you its source: `trending` means it was auto-discovered right now on Robinhood Chain via Blockscout (fresh on-chain activity, not hand-curated) — lead with these when present and call out explicitly that they were just surfaced by on-chain discovery.",
 
   new_token_launches:
     "Write a 'new token launches' story based on the VERIFIED DATA list of newly deployed pairs/contracts. If early volume data exists for any of them, mention it; if a token has no volume yet, say so plainly rather than guessing.",

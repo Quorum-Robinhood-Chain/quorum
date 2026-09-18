@@ -1,11 +1,20 @@
 import { ingestAllSources } from '@/lib/sources/ingest';
 import { ingestApifyPosts } from '@/lib/sources/apify-ingest';
 import { refreshMarketData } from '@/lib/market/refresh';
+import { syncStockTokens } from '@/lib/market/sync-stock-tokens';
+import { syncTrendingTokens } from '@/lib/market/sync-trending-tokens';
 import { generateArticle } from '@/lib/llm/generate';
 import type { TemplateType } from '@/lib/llm/prompts';
 
 // Every scheduled job in one place, so the cron route and the admin button share it.
-export const JOBS = ['ingest', 'market', 'generate', 'weekly-digest'] as const;
+export const JOBS = [
+  'ingest',
+  'market',
+  'stock-tokens-sync',
+  'trending-tokens-sync',
+  'generate',
+  'weekly-digest',
+] as const;
 export type JobName = (typeof JOBS)[number];
 
 export function isJobName(value: unknown): value is JobName {
@@ -23,6 +32,15 @@ export async function runJob(job: JobName, forceTemplate?: TemplateType) {
     }
     case 'market':
       return refreshMarketData();
+    case 'stock-tokens-sync':
+      // Full catalog sync + top-10-by-volume ranking — see lib/market/sync-stock-tokens.ts
+      // for why this runs on its own (slower) schedule instead of every 5-minute tick.
+      return syncStockTokens();
+    case 'trending-tokens-sync':
+      // Auto-discover whatever's actually trading on Robinhood Chain right now via
+      // Blockscout — see lib/market/sync-trending-tokens.ts. No-ops (returns
+      // `skipped`) if BLOCKSCOUT_API_KEY isn't set.
+      return syncTrendingTokens();
     case 'generate':
       return generateArticle(forceTemplate);
     case 'weekly-digest':

@@ -7,6 +7,7 @@ const JOBS = [
   { id: 'market', label: 'Refresh market data' },
   { id: 'ingest', label: 'Ingest sources' },
   { id: 'generate', label: 'Generate draft' },
+  { id: 'trending-tokens-sync', label: 'Sync trending tokens' },
 ] as const;
 
 type Feedback = { ok: boolean; text: string };
@@ -31,11 +32,17 @@ export default function TriggerJobsButton() {
 
       if (!res.ok || data.ok === false) {
         setFeedback({ ok: false, text: data.error ?? res.statusText });
-      } else if (data.result?.skipped) {
+      } else if (job === 'generate' && data.result?.skipped) {
+        // generateArticle()'s skip shape: { skipped: true, template, reason }
         setFeedback({
           ok: false,
           text: `Skipped — not enough verified data (${data.result.template})`,
         });
+      } else if (typeof data.result?.skipped === 'string') {
+        // syncTrendingTokens()'s skip shape: { skipped: '<reason string>' } —
+        // different job, different result shape; show its actual reason
+        // instead of assuming the generate job's fields exist.
+        setFeedback({ ok: false, text: `Skipped — ${data.result.skipped}` });
       } else {
         setFeedback({ ok: true, text: 'Job finished' });
         router.refresh();

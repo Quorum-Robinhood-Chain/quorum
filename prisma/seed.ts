@@ -28,78 +28,15 @@ const SOURCES = [
 // Memecoins stay in their own category so they can be labelled separately (§17).
 // `coingeckoId` is the CoinGecko coin id (not the ticker) and is what makes a token
 // priced out of the box. Leave it null for anything CoinGecko doesn't list — those need
-// TOKEN_POOL_MAP (on-chain pool) or STOCK_TOKEN_MAP instead. tested
+// TOKEN_POOL_MAP (on-chain pool) instead.
+//
+// Stock Tokens are NOT seeded here on purpose (unlike defi/meme below). They come from
+// Robinhood's own live catalog, not a hardcoded guess — run
+// `npx tsx scripts/run-job.ts stock-tokens-sync` after seeding (or wait for its daily
+// cron run) to populate them. See
+// lib/market/sync-stock-tokens.ts for why: Robinhood has 190+ active Stock Tokens as of
+// Sept 2026 and adds more regularly, so a static list here would go stale immediately.
 const TOKENS = [
-  {
-    symbol: 'AAPLx',
-    name: 'Apple Stock Token',
-    dex: 'Stock Token',
-    category: 'stock_token',
-    coingeckoId: null,
-  },
-  {
-    symbol: 'NVDAx',
-    name: 'Nvidia Stock Token',
-    dex: 'Stock Token',
-    category: 'stock_token',
-    coingeckoId: null,
-  },
-  {
-    symbol: 'TSLAx',
-    name: 'Tesla Stock Token',
-    dex: 'Stock Token',
-    category: 'stock_token',
-    coingeckoId: null,
-  },
-  {
-    symbol: 'MSFTx',
-    name: 'Microsoft Stock Token',
-    dex: 'Stock Token',
-    category: 'stock_token',
-    coingeckoId: null,
-  },
-  {
-    symbol: 'GOOGLx',
-    name: 'Alphabet Stock Token',
-    dex: 'Stock Token',
-    category: 'stock_token',
-    coingeckoId: null,
-  },
-  {
-    symbol: 'SPCXx',
-    name: 'SpaceX Stock Token',
-    dex: 'Stock Token',
-    category: 'stock_token',
-    coingeckoId: null,
-  },
-  {
-    symbol: 'AMZNx',
-    name: 'Amazon Stock Token',
-    dex: 'Stock Token',
-    category: 'stock_token',
-    coingeckoId: null,
-  },
-  {
-    symbol: 'METAx',
-    name: 'Meta Stock Token',
-    dex: 'Stock Token',
-    category: 'stock_token',
-    coingeckoId: null,
-  },
-  {
-    symbol: 'COINx',
-    name: 'Coinbase Stock Token',
-    dex: 'Stock Token',
-    category: 'stock_token',
-    coingeckoId: null,
-  },
-  {
-    symbol: 'INTCx',
-    name: 'Intel Stock Token',
-    dex: 'Stock Token',
-    category: 'stock_token',
-    coingeckoId: null,
-  },
   {
     symbol: 'USDG',
     name: 'Global Dollar',

@@ -3,7 +3,7 @@ import { formatUsd, formatPct } from '@/lib/format';
 import { trendingTokens as fallbackTokens } from '@/data/tokens';
 import type { TokenCategory, TokenRow } from '@/types';
 
-const VALID_CATEGORIES: TokenCategory[] = ['stock_token', 'defi', 'meme'];
+const VALID_CATEGORIES: TokenCategory[] = ['stock_token', 'defi', 'meme', 'trending'];
 
 function toTokenCategory(raw: string): TokenCategory {
   return (VALID_CATEGORIES as string[]).includes(raw) ? (raw as TokenCategory) : 'defi';
