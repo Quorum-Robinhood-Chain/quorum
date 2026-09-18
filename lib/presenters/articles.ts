@@ -33,7 +33,10 @@ export type RelatedToken = { symbol: string; url: string };
 // can resolve to a different token with the same symbol.
 function matchRelatedTokens(
   text: string,
-  tokens: Pick<TokenRow, 'symbol' | 'category' | 'contractAddress'>[],
+  tokens: Pick<
+    TokenRow,
+    'symbol' | 'category' | 'contractAddress' | 'chainSlug'
+  >[],
 ): RelatedToken[] {
   const found = new Map<string, string>();
 

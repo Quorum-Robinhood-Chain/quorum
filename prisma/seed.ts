@@ -36,20 +36,22 @@ const SOURCES = [
 // cron run) to populate them. See
 // lib/market/sync-stock-tokens.ts for why: Robinhood has 190+ active Stock Tokens as of
 // Sept 2026 and adds more regularly, so a static list here would go stale immediately.
+// contractAddress/chainSlug below are the real deployment for each token —
+// mostly NOT on Robinhood Chain (these are well-established multi-chain
+// tokens; wBTC/wETH/AAVE/LINK's liquid markets happen to be on Solana here,
+// for instance). chainSlug records which Dexscreener chain each address
+// actually belongs to, so the external link goes to a real, resolvable pair
+// instead of guessing "robinhood" for everything — see
+// lib/market/external-links.ts. Supplied by the site owner, 2026-09-18.
 const TOKENS = [
-  {
-    symbol: 'USDG',
-    name: 'Global Dollar',
-    dex: 'Morpho',
-    category: 'defi',
-    coingeckoId: 'global-dollar',
-  },
   {
     symbol: 'UNI',
     name: 'Uniswap',
     dex: 'Uniswap',
     category: 'defi',
     coingeckoId: 'uniswap',
+    contractAddress: '0xfaa318479b7755b2dbfdd34dc306cb28b420ad12',
+    chainSlug: 'ethereum',
   },
   {
     symbol: '1INCH',
@@ -57,6 +59,8 @@ const TOKENS = [
     dex: '1inch',
     category: 'defi',
     coingeckoId: '1inch',
+    contractAddress: '0xfbee12f66d7aecb32bcd60efae0c49a19855a57f',
+    chainSlug: 'robinhood',
   },
   {
     symbol: 'MORPHO',
@@ -64,6 +68,8 @@ const TOKENS = [
     dex: 'Morpho',
     category: 'defi',
     coingeckoId: 'morpho',
+    contractAddress: '0xb5f0b4ae66c14f7efaa9aa1468e8fc536a3e288c',
+    chainSlug: 'base',
   },
   {
     symbol: 'LINK',
@@ -71,6 +77,8 @@ const TOKENS = [
     dex: 'Chainlink',
     category: 'defi',
     coingeckoId: 'chainlink',
+    contractAddress: '7ge3sev8rbgz7gcfddiqy6arfdnvzbkvpl9svsq9dytq',
+    chainSlug: 'solana',
   },
   {
     symbol: 'ARC',
@@ -78,6 +86,9 @@ const TOKENS = [
     dex: 'Arcus',
     category: 'defi',
     coingeckoId: null,
+    contractAddress:
+      '0x5e794e5d3d01c045ddfb2448c4afd557ec297d1dee49b28923dc0ada3425f780',
+    chainSlug: 'arc',
   },
   {
     symbol: 'AAVE',
@@ -85,6 +96,8 @@ const TOKENS = [
     dex: 'Uniswap',
     category: 'defi',
     coingeckoId: 'aave',
+    contractAddress: '6k7hlzfcl3h64uzijbon3wznxyj6pibmp1dzh8zffhsb',
+    chainSlug: 'solana',
   },
   {
     symbol: 'wBTC',
@@ -92,6 +105,8 @@ const TOKENS = [
     dex: 'Uniswap',
     category: 'defi',
     coingeckoId: 'wrapped-bitcoin',
+    contractAddress: 'b5ewjvduaauzueedwvbuxzbffgeynuqqs37tum1c4pqa',
+    chainSlug: 'solana',
   },
   {
     symbol: 'wETH',
@@ -99,6 +114,8 @@ const TOKENS = [
     dex: 'Uniswap',
     category: 'defi',
     coingeckoId: 'weth',
+    contractAddress: 'hktfl7iwgkt5qhjywqkcdnzxscoh811k7akrmzjkccef',
+    chainSlug: 'solana',
   },
   {
     symbol: 'CRV',
@@ -106,6 +123,8 @@ const TOKENS = [
     dex: 'Uniswap',
     category: 'defi',
     coingeckoId: 'curve-dao-token',
+    contractAddress: '0xa95b0f5a65a769d82ab4f3e82842e45b8bbaf101',
+    chainSlug: 'arbitrum',
   },
   {
     symbol: 'COMP',
@@ -113,6 +132,24 @@ const TOKENS = [
     dex: 'Uniswap',
     category: 'defi',
     coingeckoId: 'compound-governance-token',
+    contractAddress: '0x3367fedd8ad5a8cf01cfe89df3c697d3a59a1cad',
+    chainSlug: 'base',
+  },
+  // LIT (Lighter) replaces USDG here — USDG is Robinhood Chain's own
+  // settlement stablecoin, not a third-party DeFi protocol token, and kept
+  // showing up duplicated between the `defi` and auto-discovered `trending`
+  // lists. Lighter is one of Robinhood Chain's actual launch DeFi
+  // integrations (perps trading, plus its own points → $LIT incentive
+  // programme), so it's a like-for-like replacement rather than an
+  // arbitrary filler.
+  {
+    symbol: 'LIT',
+    name: 'Lighter',
+    dex: 'Lighter',
+    category: 'defi',
+    coingeckoId: null,
+    contractAddress: '5h7c1wuyre3uaegnfaxlor4jnucmyncrrhfk6oavxfwt',
+    chainSlug: 'solana',
   },
 ] as const;
 
@@ -130,9 +167,19 @@ async function main() {
       where: { symbol: token.symbol },
     });
     if (existing) {
+      // Was: only coingeckoId. That silently skipped every other field on
+      // an already-seeded row, so re-running this script (e.g. after adding
+      // contractAddress/chainSlug for the defi tokens) never actually wrote
+      // them for tokens that already existed in the DB.
       await prisma.token.update({
         where: { id: existing.id },
-        data: { coingeckoId: token.coingeckoId },
+        data: {
+          name: token.name,
+          dex: token.dex,
+          contractAddress: token.contractAddress,
+          chainSlug: token.chainSlug,
+          coingeckoId: token.coingeckoId,
+        },
       });
     } else {
       await prisma.token.create({ data: { ...token } });

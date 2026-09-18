@@ -43,7 +43,15 @@ export default async function TokensSection() {
           if (rows.length === 0) return null;
 
           // Tokens that already have a price take priority over ones still
-          // showing "—", and we only ever show the top 10.
+          // showing "—", and we only ever show the top 10. trendingTokens
+          // (from getTokensPresentation()) is already sorted by volume, so
+          // this re-sort only breaks ties on "has a price yet" — the
+          // top-10 cap is a display cap, not a ranking decision: whichever
+          // curated `defi` tokens are moving the most right now (or newly
+          // discovered `trending` tokens) surface automatically, with no
+          // need to hand-edit anything when rankings shift. Only which
+          // tokens are eligible at all stays manual (prisma/seed.ts for
+          // defi — see lib/market/external-links.ts).
           rows = [...rows]
             .sort((a, b) => Number(b.price !== '—') - Number(a.price !== '—'))
             .slice(0, 10);

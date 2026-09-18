@@ -3,10 +3,17 @@ import { formatUsd, formatPct } from '@/lib/format';
 import { trendingTokens as fallbackTokens } from '@/data/tokens';
 import type { TokenCategory, TokenRow } from '@/types';
 
-const VALID_CATEGORIES: TokenCategory[] = ['stock_token', 'defi', 'meme', 'trending'];
+const VALID_CATEGORIES: TokenCategory[] = [
+  'stock_token',
+  'defi',
+  'meme',
+  'trending',
+];
 
 function toTokenCategory(raw: string): TokenCategory {
-  return (VALID_CATEGORIES as string[]).includes(raw) ? (raw as TokenCategory) : 'defi';
+  return (VALID_CATEGORIES as string[]).includes(raw)
+    ? (raw as TokenCategory)
+    : 'defi';
 }
 
 export interface TokensPresentation {
@@ -22,15 +29,22 @@ interface Snapshot {
 
 function latestFor(snapshots: Snapshot[], symbol: string) {
   const scope = `token:${symbol}`;
-  const pick = (metric: string) => snapshots.find((s) => s.scope === scope && s.metric === metric)?.value ?? null;
+  const pick = (metric: string) =>
+    snapshots.find((s) => s.scope === scope && s.metric === metric)?.value ??
+    null;
 
-  return { price: pick('price'), change: pick('price_change_24h'), volume: pick('volume_24h') };
+  return {
+    price: pick('price'),
+    change: pick('price_change_24h'),
+    volume: pick('volume_24h'),
+  };
 }
 
 export async function getTokensPresentation(): Promise<TokensPresentation> {
   try {
     const tokens = await prisma.token.findMany({ where: { isTracked: true } });
-    if (tokens.length === 0) return { tokens: fallbackTokens, usingLiveData: false };
+    if (tokens.length === 0)
+      return { tokens: fallbackTokens, usingLiveData: false };
 
     // DISTINCT ON (scope, metric) — the true latest value per token/metric,
     // with no cap on how many tokens that covers.
@@ -68,6 +82,7 @@ export async function getTokensPresentation(): Promise<TokensPresentation> {
             name: token.name,
             dex: token.dex ?? '—',
             contractAddress: token.contractAddress ?? null,
+            chainSlug: token.chainSlug ?? null,
             category: toTokenCategory(token.category),
             price: price != null ? formatUsd(price) : '—',
             change24h: change != null ? formatPct(change) : '—',
@@ -84,7 +99,10 @@ export async function getTokensPresentation(): Promise<TokensPresentation> {
     }
 
     // Drop tokens with no numbers at all: a tracked-but-unpriced row tells the reader nothing.
-    return { tokens: priced.filter((t) => t.hasData).map((t) => t.row), usingLiveData: true };
+    return {
+      tokens: priced.filter((t) => t.hasData).map((t) => t.row),
+      usingLiveData: true,
+    };
   } catch {
     return { tokens: fallbackTokens, usingLiveData: false };
   }
