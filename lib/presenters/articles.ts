@@ -8,12 +8,43 @@ import {
   latestNews,
   marketCards,
 } from '@/data/articles';
+import { getTokensPresentation } from '@/lib/presenters/tokens';
+import { externalTokenUrl } from '@/lib/market/external-links';
 import {
   ARTICLE_CATEGORIES,
   type Article,
   type ArticleCategory,
   type SourceAttribution,
+  type TokenRow,
 } from '@/types';
+
+export type RelatedToken = { symbol: string; url: string };
+
+// Articles have no DB column linking them to a token (see prisma/schema.prisma) —
+// so "which token is this about" is inferred by scanning the text for a known
+// symbol, e.g. "AAPLx" or "USDG". Cheap, no migration needed, good enough for a
+// "check this token" link. Matched against `tokens`, the app's live Token
+// table (via getTokensPresentation — same live-DB-with-fallback pattern the
+// /tokens page already uses), so newly added/removed tokens are picked up
+// automatically without touching this file. The link itself points off-site
+// (TradingView for Stock Tokens, CoinGecko otherwise) — see
+// lib/market/external-links.ts.
+function matchRelatedTokens(
+  text: string,
+  tokens: Pick<TokenRow, 'symbol' | 'category'>[],
+): RelatedToken[] {
+  const found = new Map<string, string>();
+
+  for (const token of tokens) {
+    const escaped = token.symbol.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const pattern = new RegExp(`\\b${escaped}\\b`, 'i');
+    if (pattern.test(text) && !found.has(token.symbol)) {
+      found.set(token.symbol, externalTokenUrl(token));
+    }
+  }
+
+  return Array.from(found, ([symbol, url]) => ({ symbol, url }));
+}
 
 const VALID_SOURCE_NAMES: SourceAttribution['name'][] = [
   'BeInCrypto',
@@ -188,6 +219,11 @@ export interface ArticleDetail {
   unlocksAt: string | null;
   minutesUntilUnlock: number;
   requiredBalance: number;
+
+  /** Tokens mentioned in the headline/dek/body, each with a trusted off-site
+   *  link (TradingView for Stock Tokens, CoinGecko otherwise). Inferred from
+   *  text — see matchRelatedTokens — not a stored relation. */
+  relatedTokens: RelatedToken[];
 }
 
 // Fetch a published article by ID and return its presentation data.
@@ -206,6 +242,9 @@ export async function getArticleById(
 
     const publishedAt = a.publishedAt ?? a.generatedAt;
     const gated = isGated(publishedAt);
+    // Live tokens (DB, falls back to data/tokens.ts internally) — same set
+    // shown on /tokens, so a detected mention always leads somewhere real.
+    const { tokens } = await getTokensPresentation();
 
     return {
       id: a.id,
@@ -224,6 +263,11 @@ export async function getArticleById(
       unlocksAt: gated ? gateUnlocksAt(publishedAt).toISOString() : null,
       minutesUntilUnlock: gated ? minutesUntilUnlock(publishedAt) : 0,
       requiredBalance: quorumMinBalance(),
+      // Body is withheld while gated, so this only sees headline + dek until unlock.
+      relatedTokens: matchRelatedTokens(
+        `${a.headline} ${a.dek ?? ''} ${gated ? '' : a.body}`,
+        tokens,
+      ),
     };
   } catch {
     return null;

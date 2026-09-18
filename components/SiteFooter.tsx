@@ -55,11 +55,13 @@ export default function SiteFooter() {
           </ul>
         </div>
 
-        {/* Learn menu: one link per explainer, with a short title */}
+        {/* Learn menu: one link per explainer, with a short title.
+            Footer is a compact nav, so only show the first 4 guides —
+            `limit` isn't a real <li> prop, so slice the array instead. */}
         <div className="footer-col">
           <h4>Learn</h4>
           <ul>
-            {learnGuides.map((guide) => (
+            {learnGuides.slice(0, 4).map((guide) => (
               <li key={guide.id}>
                 <a href={guide.href}>{guide.shortTitle ?? guide.title}</a>
               </li>

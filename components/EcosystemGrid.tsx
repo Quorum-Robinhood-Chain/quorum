@@ -34,9 +34,12 @@ export default async function EcosystemGrid() {
             protocols.filter((p) => p.category === category),
           )
           .map((protocol) => (
-            <div
+            <a
               key={protocol.id}
-              className="flex flex-col rounded-card border border-line p-4.5"
+              href={protocol.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex flex-col rounded-card border border-line p-4.5 transition-colors hover:border-olive hover:bg-panel"
             >
               <div className="flex items-baseline justify-between gap-2">
                 <h3 className="font-display text-base font-bold text-ink">
@@ -67,7 +70,7 @@ export default async function EcosystemGrid() {
                   {protocolCategoryLabels[protocol.category]}
                 </span>
               </div>
-            </div>
+            </a>
           ))}
       </div>
 

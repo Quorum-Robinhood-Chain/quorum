@@ -5,7 +5,6 @@ export default async function MarketsSection() {
   // Fetch the 3 latest market articles.
   const { articles: marketCards } = await getArticlesPresentation({
     limit: 3,
-    category: 'Markets',
   });
 
   return (
