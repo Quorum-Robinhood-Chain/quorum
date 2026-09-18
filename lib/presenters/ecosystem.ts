@@ -11,7 +11,7 @@ const PROTOCOL_META: Array<Omit<ProtocolRow, 'tvl'> & { scope: string }> = [
     description:
       'DEX from the dYdX team, running fee-rebate incentives to compete for early Robinhood Chain volume.',
     scope: 'protocol:arcus',
-    url: '#',
+    url: 'https://arcus.trade',
   },
   {
     id: 'uniswap',
@@ -19,7 +19,7 @@ const PROTOCOL_META: Array<Omit<ProtocolRow, 'tvl'> & { scope: string }> = [
     category: 'dex',
     description: 'The leading AMM, live on Robinhood Chain since launch.',
     scope: 'protocol:uniswap',
-    url: '#',
+    url: 'https://uniswap.org',
   },
   {
     id: '1inch',
@@ -28,7 +28,7 @@ const PROTOCOL_META: Array<Omit<ProtocolRow, 'tvl'> & { scope: string }> = [
     description:
       'Aggregator routing swaps across Robinhood Chain DEX liquidity for best execution.',
     scope: 'protocol:1inch',
-    url: '#',
+    url: 'https://1inch.io',
   },
   {
     id: 'lighter',
@@ -37,7 +37,7 @@ const PROTOCOL_META: Array<Omit<ProtocolRow, 'tvl'> & { scope: string }> = [
     description:
       'Orderbook-style exchange, one of the first venues live on the chain.',
     scope: 'protocol:lighter',
-    url: '#',
+    url: 'https://lighter.xyz',
   },
   {
     id: 'morpho',
@@ -46,7 +46,7 @@ const PROTOCOL_META: Array<Omit<ProtocolRow, 'tvl'> & { scope: string }> = [
     description:
       'USDG lending market — the go-to venue for stablecoin yield on Robinhood Chain.',
     scope: 'protocol:morpho',
-    url: '#',
+    url: 'https://morpho.org',
   },
   {
     id: 'chainlink',
@@ -55,7 +55,7 @@ const PROTOCOL_META: Array<Omit<ProtocolRow, 'tvl'> & { scope: string }> = [
     description:
       'Price feeds powering Stock Token pricing and other on-chain reference data.',
     scope: 'protocol:chainlink',
-    url: '#',
+    url: 'https://chain.link',
   },
 ];
 
