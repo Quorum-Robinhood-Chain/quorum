@@ -66,8 +66,8 @@ const TOKENS = [
     coingeckoId: null,
   },
   {
-    symbol: 'HOODx',
-    name: 'Robinhood Stock Token',
+    symbol: 'SPCXx',
+    name: 'SpaceX Stock Token',
     dex: 'Stock Token',
     category: 'stock_token',
     coingeckoId: null,
@@ -94,8 +94,8 @@ const TOKENS = [
     coingeckoId: null,
   },
   {
-    symbol: 'AMDx',
-    name: 'AMD Stock Token',
+    symbol: 'INTCx',
+    name: 'Intel Stock Token',
     dex: 'Stock Token',
     category: 'stock_token',
     coingeckoId: null,
