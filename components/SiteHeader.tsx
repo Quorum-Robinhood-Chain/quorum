@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { AnimatePresence, motion } from 'framer-motion';
 
 import type { SearchResult } from '@/app/api/search/route';
 import ConnectWalletButton from '@/components/ConnectWalletButton';
@@ -165,77 +166,90 @@ export default function SiteHeader() {
               </svg>
             </button>
 
-            {searchOpen && (
-              <div className="search-dropdown" role="search">
-                <div className="search-dropdown-input">
-                  <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                    <circle
-                      cx="11"
-                      cy="11"
-                      r="7"
-                      stroke="currentColor"
-                      strokeWidth="2"
+            <AnimatePresence>
+              {searchOpen && (
+                <motion.div
+                  className="search-dropdown"
+                  role="search"
+                  initial={{ opacity: 0, y: -6 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -6 }}
+                  transition={{ duration: 0.15, ease: 'easeOut' }}
+                >
+                  <div className="search-dropdown-input">
+                    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                      <circle
+                        cx="11"
+                        cy="11"
+                        r="7"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                      />
+                      <path
+                        d="M21 21L16.5 16.5"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                      />
+                    </svg>
+                    <input
+                      ref={inputRef}
+                      type="text"
+                      value={query}
+                      onChange={(e) => setQuery(e.target.value)}
+                      placeholder="Search news, tokens, protocols…"
+                      aria-label="Search this site"
                     />
-                    <path
-                      d="M21 21L16.5 16.5"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                    />
-                  </svg>
-                  <input
-                    ref={inputRef}
-                    type="text"
-                    value={query}
-                    onChange={(e) => setQuery(e.target.value)}
-                    placeholder="Search news, tokens, protocols…"
-                    aria-label="Search this site"
-                  />
-                </div>
+                  </div>
 
-                <div className="search-dropdown-results">
-                  {loading && (
-                    <div className="search-dropdown-status">Searching…</div>
-                  )}
-
-                  {!loading &&
-                    query.trim().length >= 2 &&
-                    results.length === 0 && (
-                      <div className="search-dropdown-status">
-                        No results for &ldquo;{query.trim()}&rdquo;
-                      </div>
+                  <div className="search-dropdown-results">
+                    {loading && (
+                      <div className="search-dropdown-status">Searching…</div>
                     )}
 
-                  {!loading &&
-                    query.trim().length > 0 &&
-                    query.trim().length < 2 && (
-                      <div className="search-dropdown-status">Keep typing…</div>
-                    )}
+                    {!loading &&
+                      query.trim().length >= 2 &&
+                      results.length === 0 && (
+                        <div className="search-dropdown-status">
+                          No results for &ldquo;{query.trim()}&rdquo;
+                        </div>
+                      )}
 
-                  {!loading &&
-                    results.map((r) => (
-                      <Link
-                        key={`${r.type}-${r.id}`}
-                        href={r.href}
-                        className="search-result"
-                        onClick={closeSearch}
-                      >
-                        <span className="search-result-type">
-                          {RESULT_TYPE_LABELS[r.type]}
-                        </span>
-                        <span className="search-result-body">
-                          <span className="search-result-title">{r.title}</span>
-                          {r.subtitle && (
-                            <span className="search-result-subtitle">
-                              {r.subtitle}
+                    {!loading &&
+                      query.trim().length > 0 &&
+                      query.trim().length < 2 && (
+                        <div className="search-dropdown-status">
+                          Keep typing…
+                        </div>
+                      )}
+
+                    {!loading &&
+                      results.map((r) => (
+                        <Link
+                          key={`${r.type}-${r.id}`}
+                          href={r.href}
+                          className="search-result"
+                          onClick={closeSearch}
+                        >
+                          <span className="search-result-type">
+                            {RESULT_TYPE_LABELS[r.type]}
+                          </span>
+                          <span className="search-result-body">
+                            <span className="search-result-title">
+                              {r.title}
                             </span>
-                          )}
-                        </span>
-                      </Link>
-                    ))}
-                </div>
-              </div>
-            )}
+                            {r.subtitle && (
+                              <span className="search-result-subtitle">
+                                {r.subtitle}
+                              </span>
+                            )}
+                          </span>
+                        </Link>
+                      ))}
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
 
           <ConnectWalletButton variant="header" />

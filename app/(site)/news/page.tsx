@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import NewsArchive from '@/components/NewsArchive';
+import Reveal from '@/components/motion/Reveal';
 import { getArticlesPresentation } from '@/lib/presenters/articles';
 import { newsCategories } from '@/data/news';
 import type { ArticleCategory } from '@/types';
@@ -42,12 +43,14 @@ export default async function NewsPage({
       </div>
 
       {/* News archive with category filters */}
-      <NewsArchive
-        articles={articles}
-        categories={newsCategories}
-        usingLiveData={usingLiveData}
-        initialCategory={initialCategory}
-      />
+      <Reveal>
+        <NewsArchive
+          articles={articles}
+          categories={newsCategories}
+          usingLiveData={usingLiveData}
+          initialCategory={initialCategory}
+        />
+      </Reveal>
     </main>
   );
 }

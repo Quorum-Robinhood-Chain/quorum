@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { AnimatePresence } from 'framer-motion';
 import { useWallet } from '@/lib/wallet/WalletProvider';
 import { truncateAddress } from '@/lib/format';
 import WalletModal from '@/components/WalletModal';
@@ -103,15 +104,17 @@ export default function ConnectWalletButton({
       >
         <span className="label">Connect Wallet</span>
       </button>
-      {modalOpen && (
-        <WalletModal
-          wallets={wallets}
-          connectingRdns={pendingRdns}
-          error={error}
-          onConnect={handleConnect}
-          onClose={() => setModalOpen(false)}
-        />
-      )}
+      <AnimatePresence>
+        {modalOpen && (
+          <WalletModal
+            wallets={wallets}
+            connectingRdns={pendingRdns}
+            error={error}
+            onConnect={handleConnect}
+            onClose={() => setModalOpen(false)}
+          />
+        )}
+      </AnimatePresence>
     </>
   );
 }

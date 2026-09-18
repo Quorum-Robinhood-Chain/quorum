@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
+import { motion } from 'framer-motion';
 import type { EIP6963ProviderDetail } from '@/lib/wallet/eip6963';
 import { KNOWN_WALLETS } from '@/lib/wallet/known-wallets';
 
@@ -64,13 +65,24 @@ export default function WalletModal({
   const rows = [...curatedRows, ...extraRows];
 
   return (
-    <div className="wallet-modal-overlay" onMouseDown={onClose}>
-      <div
+    <motion.div
+      className="wallet-modal-overlay"
+      onMouseDown={onClose}
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.15 }}
+    >
+      <motion.div
         className="wallet-modal"
         role="dialog"
         aria-modal="true"
         aria-labelledby="wallet-modal-title"
         onMouseDown={(e) => e.stopPropagation()}
+        initial={{ opacity: 0, y: 12, scale: 0.98 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        exit={{ opacity: 0, y: 12, scale: 0.98 }}
+        transition={{ duration: 0.18, ease: 'easeOut' }}
       >
         <button
           className="wallet-modal-close"
@@ -83,9 +95,7 @@ export default function WalletModal({
         <h2 id="wallet-modal-title" className="wallet-modal-title">
           Connect a Wallet
         </h2>
-        <p className="wallet-modal-subtitle">
-          Select your wallet
-        </p>
+        <p className="wallet-modal-subtitle">Select your wallet</p>
 
         <ul className="wallet-modal-list">
           {rows.map((row) => {
@@ -138,7 +148,7 @@ export default function WalletModal({
         >
           Don&apos;t see your wallet? More options →
         </a>
-      </div>
-    </div>
+      </motion.div>
+    </motion.div>
   );
 }
