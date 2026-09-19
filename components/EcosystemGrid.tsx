@@ -117,12 +117,6 @@ export default async function EcosystemGrid() {
           </div>
         )}
       </div>
-
-      {/* Data source disclaimer */}
-      <p className="mt-8 text-xs text-gray-400">
-        TVL figures pulled from DefiLlama and the Morpho API. Not financial
-        advice.
-      </p>
     </section>
   );
 }

@@ -119,11 +119,6 @@ export default async function MarketsOverview() {
         ))}
       </div>
 
-      {/* Data source and financial disclaimer */}
-      <p className="mt-8 text-xs text-gray-400">
-        Prices and volume refresh independently of the article pipeline. Not
-        financial advice — nothing here is a recommendation to buy or sell.
-      </p>
     </section>
   );
 }
