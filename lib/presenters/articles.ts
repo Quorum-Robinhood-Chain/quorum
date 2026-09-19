@@ -88,14 +88,18 @@ export interface ArticlesPresentation {
 export async function getArticlesPresentation(
   opts: {
     category?: ArticleCategory;
-    limit?: number;
+    /** Max articles to return. Pass null for no cap (all published articles). */
+    limit?: number | null;
     /** Only include articles published (or generated, if unpublished-dated) within the last N hours. */
     sinceHours?: number;
   } = {},
 ): Promise<ArticlesPresentation> {
   // When sinceHours is set and no explicit limit is given, don't cap the
   // count — the caller wants "everything from the last N hours".
-  const limit = opts.limit ?? (opts.sinceHours ? undefined : 20);
+  const limit =
+    opts.limit === null
+      ? undefined
+      : (opts.limit ?? (opts.sinceHours ? undefined : 20));
 
   const since = opts.sinceHours
     ? new Date(Date.now() - opts.sinceHours * 60 * 60 * 1000)

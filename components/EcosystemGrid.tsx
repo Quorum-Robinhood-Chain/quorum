@@ -1,5 +1,6 @@
 import { getEcosystemPresentation } from '@/lib/presenters/ecosystem';
 import { getArticlesPresentation } from '@/lib/presenters/articles';
+import { CategoryThumb } from '@/lib/categoryVisual';
 import {
   protocolCategoryLabels,
   protocolCategoryOrder,
@@ -99,19 +100,26 @@ export default async function EcosystemGrid() {
               <a
                 key={article.id}
                 href={article.href}
-                className="flex flex-col gap-1 p-4.5 hover:bg-panel"
+                className="flex flex-col gap-3 p-4.5 hover:bg-panel sm:flex-row sm:items-start sm:gap-5"
               >
-                <h3 className="text-[15px] font-bold leading-snug text-ink">
-                  {article.headline}
-                </h3>
+                <CategoryThumb
+                  category={article.category}
+                  className="flex h-32 w-full shrink-0 items-center justify-center overflow-hidden rounded-card bg-[#00152B] sm:h-20 sm:w-32"
+                />
 
-                {article.dek && (
-                  <p className="text-sm text-gray-600">{article.dek}</p>
-                )}
+                <div className="flex min-w-0 flex-1 flex-col gap-1">
+                  <h3 className="text-[15px] font-bold leading-snug text-ink">
+                    {article.headline}
+                  </h3>
 
-                <span className="text-xs text-gray-400">
-                  {article.desk} · {article.timeAgo}
-                </span>
+                  {article.dek && (
+                    <p className="text-sm text-gray-600">{article.dek}</p>
+                  )}
+
+                  <span className="text-xs text-gray-400">
+                    {article.desk} · {article.timeAgo}
+                  </span>
+                </div>
               </a>
             ))}
           </div>

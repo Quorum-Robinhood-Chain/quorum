@@ -23,7 +23,7 @@ export default async function NewsPage({
 }) {
   // Fetch the latest articles and live data status.
   const { articles, usingLiveData } = await getArticlesPresentation({
-    limit: 50,
+    limit: null,
   });
 
   // Only trust the query param if it matches a real, filterable category.
@@ -36,7 +36,6 @@ export default async function NewsPage({
 
   return (
     <main>
-
       {/* News archive with category filters */}
       <Reveal>
         <NewsArchive

@@ -9,17 +9,7 @@ export default function SiteFooter() {
       <div className="footer-grid">
         <div className="footer-col footer-brand">
           <a className="logo" href="/">
-            <span className="mark">
-              <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                <path
-                  d="M4 12L12 4L20 12L12 20L4 12Z"
-                  stroke="#0A0A0A"
-                  strokeWidth="2"
-                  strokeLinejoin="round"
-                />
-                <circle cx="12" cy="12" r="2.4" fill="#0A0A0A" />
-              </svg>
-            </span>
+            <img src="/logo.png" alt="" className="logo-img" />
             Quorum <span className="chain">Robinhood Chain</span>
           </a>
           <p>

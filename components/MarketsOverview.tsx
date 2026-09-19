@@ -1,5 +1,6 @@
 import { getArticlesPresentation } from '@/lib/presenters/articles';
 import { getNetworkSnapshotPresentation } from '@/lib/presenters/network-snapshot';
+import { CategoryThumb } from '@/lib/categoryVisual';
 
 export default async function MarketsOverview() {
   // Fetch market statistics and market-related articles from the last 24 hours
@@ -72,6 +73,11 @@ export default async function MarketsOverview() {
             key={article.id}
             className="group relative flex flex-col rounded-card border border-line p-4.5 transition hover:border-olive/60 hover:shadow-sm"
           >
+            <CategoryThumb
+              category={article.category}
+              className="mb-3 flex aspect-video w-full items-center justify-center overflow-hidden rounded-card bg-[#00152B]"
+            />
+
             <span className="text-[11.5px] font-bold uppercase tracking-wide text-olive">
               {article.category}
             </span>
@@ -118,7 +124,6 @@ export default async function MarketsOverview() {
           </article>
         ))}
       </div>
-
     </section>
   );
 }

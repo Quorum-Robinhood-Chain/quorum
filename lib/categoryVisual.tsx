@@ -31,7 +31,7 @@ export const CATEGORY_VISUAL: Record<
     image: '/categories/stock-tokens.jpg',
   },
   Security: { icon: ShieldCheck, color: '#9F7AEA' },
-  Learn: { icon: BookOpen, color: '#38B2AC' },
+  Learn: { icon: BookOpen, color: '#38B2AC', image: '/categories/learn.jpg' },
 };
 
 const FALLBACK_VISUAL = { icon: Newspaper, color: '#CC0000' };
