@@ -1,71 +1,36 @@
 name: Quorum scheduled jobs
 
-# Vercel Hobby only allows cron jobs that run once a day (see vercel.json — the
-# crons block was removed) AND caps every function invocation at 10s. This
-# workflow replaces Vercel Cron entirely and splits jobs by how they behave:
+# GitHub Actions replaces Vercel Cron because Vercel Hobby has a 10s limit.
 #
-#   ingest, market   → still call /api/cron/[job] on Vercel (job "trigger-http").
-#                       Both are quick (RSS/API polling, no LLM call) and have
-#                       no reason to need more than Vercel's 10s budget.
+# ingest, market → call Vercel API endpoints.
+# generate, weekly-digest → run directly for longer LLM jobs.
+# stock-tokens-sync, trending-tokens-sync → run directly for longer data jobs.
 #
-#   generate,        → run straight on this runner instead (job "run-direct"),
-#   weekly-digest      importing lib/jobs.ts directly via scripts/run-job.ts.
-#                       generate calls the MiMo LLM API for up to ~1200 tokens,
-#                       which routinely exceeds 10s — GitHub's runner has no
-#                       such limit (default 6h per job), so this is what
-#                       actually fixes the timeouts rather than working around
-#                       them.
+# Required repo secrets:
+# SITE_URL             → Vercel URL, used by ingest/market
+# CRON_TRIGGER_SECRET  → cron secret, used by ingest/market
+# DATABASE_URL         → pooled database URL
+# DIRECT_URL           → direct database URL
+# MIMO_API_KEY         → MiMo API key
+# MIMO_BASE_URL        → optional MiMo base URL
+# MIMO_MODEL           → optional MiMo model
+# RHC_RPC_URL          → RPC URL for new token lookups
 #
-#   stock-tokens-sync,  also run on this runner (job "run-direct-light") — both
-#   trending-tokens-sync exceed Vercel's 10s budget (stock-tokens-sync fetches a
-#                       quote for every active symbol, 190+ as of Sept 2026;
-#                       trending-tokens-sync fetches Dexscreener's latest token
-#                       profiles + pair data). Neither needs MiMo or RPC secrets,
-#                       so they're a separate, lighter job group from
-#                       generate/weekly-digest.
-#                       stock-tokens-sync runs once a day (the official catalog
-#                       and top-10-by-volume ranking both change slowly).
-#                       trending-tokens-sync runs every 6 hours since "what's
-#                       happening now" goes stale faster — the 5-minute `market`
-#                       job still handles re-pricing whichever ones are already
-#                       tracked either way (see lib/market/refresh.ts).
+# trending-tokens-sync uses Dexscreener's public API and needs no API key.
 #
-# Required repo secrets (Settings → Secrets and variables → Actions):
-#   SITE_URL             e.g. https://quorum.example.com (no trailing slash) — used by ingest/market
-#   CRON_TRIGGER_SECRET  same value as CRON_TRIGGER_SECRET in Vercel env vars — used by ingest/market
-#   DATABASE_URL         same pooled (pgbouncer) connection string as Vercel   — used by generate/weekly-digest/stock-tokens-sync
-#   DIRECT_URL           same value as in Vercel                              — used by generate/weekly-digest/stock-tokens-sync
-#   MIMO_API_KEY         same value as in Vercel                              — used by generate/weekly-digest
-#   MIMO_BASE_URL        optional, same value as in Vercel if set             — used by generate/weekly-digest
-#   MIMO_MODEL           optional, same value as in Vercel if set             — used by generate/weekly-digest
-#   RHC_RPC_URL          same value as in Vercel (needed by the              — used by generate/weekly-digest
-#                        new_token_launches template's chain-rpc lookup)
-#   (trending-tokens-sync needs no secret — Dexscreener's public API is used,
-#   no key required. BLOCKSCOUT_API_KEY/BLOCKSCOUT_CHAIN_ID/BLOCKSCOUT_MIN_HOLDERS
-#   are no longer read by trending-tokens-sync or the market refresh job; see
-#   lib/market/dexscreener.ts and lib/market/blockscout.ts.)
+# GitHub schedules are best-effort and may be delayed.
+# Scheduled workflows can also be disabled after 60 days without activity.
 #
-# Note: GitHub's scheduler is best-effort — during high platform load, runs can be
-# delayed by several minutes (occasionally more). Fine for this use case, but don't
-# expect Vercel Cron-level punctuality. Also: GitHub auto-disables scheduled
-# workflows after 60 days with no repo activity — push anything to re-enable it,
-# or open the Actions tab and re-enable manually.
-#
-# Actions minutes: this repo is private, so the free tier gives 2,000 min/month.
-# generate runs ~48x/day — keep the "Cache npm dependencies" step in run-direct
-# in place, it's what keeps each run's install time low enough to stay well
-# under budget. If you ever get close to the limit, the easiest lever is
-# lowering generate's schedule below (e.g. every 60 min instead of 30), or
-# making the repo public (unlimited Actions minutes — .env is already
-# gitignored, so no real secret would be exposed by doing that).
+# Private repositories have 2,000 free Actions minutes/month.
+# Keep npm caching enabled to reduce install time.
 
 on:
   schedule:
-    - cron: '*/20 * * * *' # ingest — RSS + X (Apify)
-    - cron: '*/5 * * * *'  # market — on-chain/off-chain data refresh
-    - cron: '0 6 * * *'    # stock-tokens-sync — daily catalog + top-10 refresh
-    - cron: '0 */6 * * *'  # trending-tokens-sync — Dexscreener discovery, every 6h
-    - cron: '*/30 * * * *' # generate — automated article generation
+    - cron: '*/20 * * * *' # ingest — RSS news feeds
+    - cron: '*/5 * * * *'  # market — data refresh
+    - cron: '0 6 * * *'    # stock-tokens-sync — daily catalog refresh
+    - cron: '0 */6 * * *'  # trending-tokens-sync — every 6 hours
+    - cron: '*/30 * * * *' # generate — article generation
     - cron: '0 9 * * 5'    # weekly-digest — Fridays 09:00 UTC
   workflow_dispatch:
     inputs:
@@ -101,7 +66,7 @@ jobs:
             *)              echo "name=${{ github.event.inputs.job }}" >> "$GITHUB_OUTPUT" ;;
           esac
 
-  # Fast jobs — no LLM call, comfortably under Vercel's 10s function limit.
+  # Fast jobs — run through Vercel.
   trigger-http:
     needs: resolve
     if: contains(fromJSON('["ingest", "market"]'), needs.resolve.outputs.job)
@@ -126,8 +91,7 @@ jobs:
             exit 1
           fi
 
-  # Slow job — calls the MiMo LLM API, runs here instead of on Vercel so a
-  # long model response can't get cut off at Hobby's 10s function timeout.
+  # Slow jobs — run directly to avoid Vercel's 10s limit.
   run-direct:
     needs: resolve
     if: contains(fromJSON('["generate", "weekly-digest"]'), needs.resolve.outputs.job)
@@ -160,8 +124,7 @@ jobs:
           node-version: '20'
           cache: 'npm'
 
-      # Dependencies only — no `next build`, since this script never touches
-      # the Next.js app itself, only the shared lib/ modules.
+      # Only shared dependencies are needed.
       - name: Install dependencies
         run: npm ci
 
@@ -171,13 +134,7 @@ jobs:
       - name: Run ${{ needs.resolve.outputs.job }}
         run: npx tsx scripts/run-job.ts ${{ needs.resolve.outputs.job }}
 
-  # stock-tokens-sync / trending-tokens-sync: same reason as run-direct (exceeds
-  # Vercel's 10s budget), but neither touches MiMo or RPC — kept as its own
-  # lighter secret set. trending-tokens-sync now discovers via Dexscreener's
-  # public API (lib/market/dexscreener.ts), which needs no key, so no
-  # Blockscout secrets are required here anymore. DEXSCREENER_MIN_LIQUIDITY_USD
-  # is optional (defaults to 1000) — set it if you want a different liquidity
-  # floor for what counts as a "trending" candidate.
+  # Light jobs — run directly without MiMo or RPC secrets.
   run-direct-light:
     needs: resolve
     if: contains(fromJSON('["stock-tokens-sync", "trending-tokens-sync"]'), needs.resolve.outputs.job)

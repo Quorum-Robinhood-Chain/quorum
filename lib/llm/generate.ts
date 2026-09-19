@@ -7,6 +7,16 @@ import {
   type TemplateType,
 } from './prompts';
 import { fetchNewPairsSince } from '@/lib/market/chain-rpc';
+import { computeMarketPulse, xSearchUrl } from '@/lib/market/pulse';
+
+// Enforce a market_pulse floor: out of every 4 consecutive articles, at least 1
+// must be a `market_pulse`. Topic choice stays random; we only look at the last
+// PULSE_QUOTA_WINDOW articles, and if none of them was a `market_pulse`, this
+// cycle is forced to be one.
+const PULSE_QUOTA_WINDOW = 3; // look back this many articles (current one makes 4)
+
+// How many tokens get a Dexscreener + "search on X" entry in a market_pulse source list.
+const SOURCE_LINK_LIMIT = 5;
 
 // Rotated every generation cycle (every 30 minutes by default — see vercel.json).
 // `stock_token_movers` intentionally left out — no more stock-token stories.
@@ -14,20 +24,9 @@ const GENERATION_TEMPLATES: TemplateType[] = [
   'trending_dex_tokens',
   'new_token_launches',
   'ecosystem_roundup',
-  'social_pulse',
+  'market_pulse',
   'tvl_lending_snapshot',
 ];
-
-// Generation runs 4x/hour. Topic choice stays fully random/free — this only
-// guarantees a floor: out of every 4 consecutive articles, at least 1 must
-// be X-sourced (`social_pulse`). Checked by looking at the last 3 articles;
-// if none of them was `social_pulse`, this cycle is forced to be, so no
-// rolling window of 4 can ever end up with zero X-sourced articles.
-const X_QUOTA_WINDOW = 3; // look back this many articles (current one makes 4)
-
-// How far back a social_pulse cycle is allowed to reach for *reused* posts
-// (already used in a previous article) once there isn't enough fresh data.
-const SOCIAL_PULSE_REUSE_WINDOW_MS = 24 * 60 * 60 * 1000; // 24h
 
 interface GatheredData {
   verifiedData: Record<string, unknown>;
@@ -36,11 +35,6 @@ interface GatheredData {
   sourceUrls: string[];
   rawItemIds: string[];
   hasEnoughData: boolean;
-  // True only for social_pulse when fresh (unused) posts weren't enough and
-  // the cycle fell back to posts already used in an earlier article. Tells
-  // generateArticle() to swap the "developing story" framing for a
-  // "still the topic of conversation" one instead.
-  isReusedData?: boolean;
 }
 
 interface SnapshotRow {
@@ -146,7 +140,12 @@ async function gatherData(template: TemplateType): Promise<GatheredData> {
     case 'ecosystem_roundup': {
       // Headline + excerpt only — never full article bodies (§7.1).
       const items = await prisma.rawItem.findMany({
-        where: { isRelevant: true, usedInArticle: false },
+        // `social` rows are leftovers from the removed X/Apify ingestion — skip them.
+        where: {
+          isRelevant: true,
+          usedInArticle: false,
+          source: { type: { not: 'social' } },
+        },
         orderBy: { fetchedAt: 'desc' },
         take: 8,
         include: { source: true },
@@ -182,66 +181,34 @@ async function gatherData(template: TemplateType): Promise<GatheredData> {
       };
     }
 
-    case 'social_pulse': {
-      // Raw material only — these never appear to readers as their own "tweet" item,
-      // only synthesized into an original story (§6.1 rule 1, §16 template instructions).
-      const MIN_POSTS = 3; // need a genuine "pulse" (multiple accounts/posts),
-      // not a single tweet dressed up as a trend.
+    case 'market_pulse': {
+      // Sentiment measured from Dexscreener trading data (price change + buy/sell
+      // counts) — tone labels are computed in lib/market/pulse.ts, not by the LLM.
+      const pulse = await computeMarketPulse();
 
-      const freshPosts = await prisma.rawItem.findMany({
-        where: {
-          isRelevant: true,
-          usedInArticle: false,
-          source: { type: 'social' },
-        },
-        orderBy: { fetchedAt: 'desc' },
-        take: 12,
-        include: { source: true },
-      });
-
-      let posts = freshPosts;
-      let isReusedData = false;
-
-      // Not enough fresh (never-used) posts — fall back to posts already
-      // used in an earlier article, as long as they're still within the
-      // reuse window. Still real posts, still attributed — just not new.
-      if (freshPosts.length < MIN_POSTS) {
-        const reusedPosts = await prisma.rawItem.findMany({
-          where: {
-            isRelevant: true,
-            source: { type: 'social' },
-            fetchedAt: {
-              gte: new Date(Date.now() - SOCIAL_PULSE_REUSE_WINDOW_MS),
-            },
-          },
-          orderBy: { fetchedAt: 'desc' },
-          take: 12,
-          include: { source: true },
-        });
-
-        if (reusedPosts.length >= MIN_POSTS) {
-          posts = reusedPosts;
-          isReusedData = true;
-        }
-      }
+      // Source list shown under the article (names[i] links to urls[i]): the
+      // Dexscreener pair for each of the top tokens, then a plain "search on X" link
+      // per token. The X links are only shortcuts for readers — no X data is fetched
+      // or used — and are labelled that way.
+      const linked = pulse.tokens.slice(0, SOURCE_LINK_LIMIT);
 
       return {
-        verifiedData: {
-          posts: posts.map((p) => ({
-            handle: p.source.handle,
-            text: p.excerpt,
-            postedAt: p.publishedAt,
-            url: p.url,
-          })),
-        },
-        generationInputs: posts.map((p) => `x:@${p.source.handle}:${p.url}`),
-        sourceNames: [...new Set(posts.map((p) => `X: @${p.source.handle}`))],
-        sourceUrls: posts.map((p) => p.url),
-        // Only mark fresh posts as used — reused posts stay eligible for reuse
-        // again later, and re-marking them wouldn't change anything anyway.
-        rawItemIds: isReusedData ? [] : posts.map((p) => p.id),
-        hasEnoughData: posts.length >= MIN_POSTS,
-        isReusedData,
+        verifiedData: { marketPulse: pulse.summary, tokens: pulse.tokens },
+        generationInputs: pulse.tokens.map(
+          (t) => `dexscreener:${t.symbol}:${t.pairUrl}`,
+        ),
+        sourceNames: [
+          ...linked.map((t) => `Dexscreener: ${t.symbol}`),
+          ...linked.map(
+            (t) => `Search $${t.symbol} on X (link only, not Quorum analysis)`,
+          ),
+        ],
+        sourceUrls: [
+          ...linked.map((t) => t.pairUrl),
+          ...linked.map((t) => xSearchUrl(t.symbol)),
+        ],
+        rawItemIds: [],
+        hasEnoughData: pulse.tokens.length >= 3,
       };
     }
 
@@ -384,21 +351,20 @@ function autoFlagReason(
   return null;
 }
 
-// Enforce the X-sourced floor: if none of the last X_QUOTA_WINDOW articles
-// was `social_pulse`, force this cycle to be `social_pulse` regardless of
-// the random pick. Otherwise the random pick stands untouched.
-async function applyXQuota(candidate: TemplateType): Promise<TemplateType> {
+// If none of the last PULSE_QUOTA_WINDOW articles was a `market_pulse`, force this
+// cycle to be one. Otherwise the random pick stands untouched.
+async function applyPulseQuota(candidate: TemplateType): Promise<TemplateType> {
   const recent = await prisma.article.findMany({
     orderBy: { publishedAt: 'desc' },
-    take: X_QUOTA_WINDOW,
+    take: PULSE_QUOTA_WINDOW,
     select: { templateType: true },
   });
 
-  const xQuotaMet = recent.some(
-    (a) => a.templateType === TEMPLATE_LABELS.social_pulse,
+  const quotaMet = recent.some(
+    (a) => a.templateType === TEMPLATE_LABELS.market_pulse,
   );
 
-  return xQuotaMet ? candidate : 'social_pulse';
+  return quotaMet ? candidate : 'market_pulse';
 }
 
 // Generate an automated draft from verified data and the selected template.
@@ -411,11 +377,23 @@ export async function generateArticle(
       Math.floor(Math.random() * GENERATION_TEMPLATES.length)
     ];
 
-  const template = forceTemplate
+  let template = forceTemplate
     ? forceTemplate
-    : await applyXQuota(randomPick);
+    : await applyPulseQuota(randomPick);
 
-  const data = await gatherData(template);
+  // e.g. a stale admin request for the removed `social_pulse` template.
+  if (!(template in TEMPLATE_LABELS)) {
+    throw new Error(`unknown article template: ${template}`);
+  }
+
+  let data = await gatherData(template);
+
+  // The quota forced a market_pulse but Dexscreener had too little data this
+  // cycle — fall back to the original random pick instead of skipping the slot.
+  if (!data.hasEnoughData && !forceTemplate && template !== randomPick) {
+    template = randomPick;
+    data = await gatherData(template);
+  }
 
   if (!data.hasEnoughData) {
     return {
@@ -428,17 +406,6 @@ export async function generateArticle(
   const userMessage = [
     `TEMPLATE: ${TEMPLATE_LABELS[template]}`,
     TEMPLATE_INSTRUCTIONS[template],
-    ...(data.isReusedData
-      ? [
-          '',
-          'DATA FRESHNESS NOTE: every post below was already used in an earlier ' +
-            'article — nothing new came in this cycle. Do NOT frame this as a ' +
-            'developing story: no "BREAKING", no "JUST IN", no "right now" urgency. ' +
-            'Frame it instead as sentiment that is still the topic of conversation ' +
-            '(e.g. "still buzzing about...", "the conversation continues around..."). ' +
-            'The facts and attribution rules still apply as normal.',
-        ]
-      : []),
     '',
     'VERIFIED DATA (the only source of any number you may state):',
     JSON.stringify(data.verifiedData, null, 2),

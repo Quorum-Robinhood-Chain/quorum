@@ -1,7 +1,7 @@
 # Quorum
 
 News and market-data site for the **Robinhood Chain** ecosystem (Ethereum L2, chain ID 4663).
-Curated third-party reporting + X/Twitter market chatter + live on-chain/market data,
+Curated third-party reporting + Dexscreener market-sentiment data + live on-chain/market data,
 written up automatically every 30 minutes and **auto-published immediately** — no manual
 approval step. Stories stay **holder-only for their first hour**: reading one within that
 window requires a connected wallet holding at least 50,000 **$QUORUM**, Quorum's own access
@@ -156,7 +156,7 @@ how each one behaves:
 | Schedule | How it runs | Job |
 |---|---|---|
 | every 5 min | curl → `/api/cron/market` | refresh market/on-chain snapshots |
-| every 20 min | curl → `/api/cron/ingest` | poll news feeds + monitored X accounts (via Apify), filter for relevance |
+| every 20 min | curl → `/api/cron/ingest` | poll news feeds, filter for relevance |
 | every 30 min | **directly on the runner** (`scripts/run-job.ts`) | generate one draft, auto-published immediately |
 | Fridays 09:00 UTC | **directly on the runner** (`scripts/run-job.ts`) | weekly rollup |
 
@@ -204,7 +204,6 @@ Trigger any job manually from the Actions tab → "Quorum scheduled jobs" → **
 
 ```
 [RSS ingest] ──► raw_items ─┐
-[X/Twitter ingest] ──► raw_items ─┤
                                   ├─► [MiMo writer] ──► articles(published, gated 1hr) ──► ticker / sidebar / pages
 [market refresh] ─► market_snapshots ─┘                                                       │
                                                             [wallet connect + $QUORUM balance] ─┘
@@ -229,39 +228,39 @@ Trigger any job manually from the Actions tab → "Quorum scheduled jobs" → **
 
 ### Two kinds of "news"
 
-- **From outside** (`lib/sources/ingest.ts` + `lib/sources/apify-ingest.ts`) — RSS from
-  BeInCrypto/Coinfomania and posts from monitored X accounts, scraped via an Apify Actor.
-  Neither is ever shown to readers as-is: both land in `raw_items` as raw material, and
-  only `ecosystem_roundup` (RSS) / `social_pulse` (X) turn them into an original Quorum
-  article — see editorial rule 1, "attribute, don't republish."
+- **From outside** (`lib/sources/ingest.ts`) — RSS from BeInCrypto/Coinfomania. It is never
+  shown to readers as-is: it lands in `raw_items` as raw material, and only
+  `ecosystem_roundup` turns it into an original Quorum article — see editorial rule 1,
+  "attribute, don't republish."
 - **Made by Quorum** — everything the `generate` cron produces every 30 minutes, across
   all seven templates (`lib/llm/prompts.ts` → `TEMPLATE_LABELS`), auto-published
   immediately and gated for the first hour (see "Wallet + $QUORUM gating" below).
 
-### X/Twitter ingestion (via Apify)
+### Market sentiment (Dexscreener, replaces X/Apify)
 
-- **Config-driven, no seed step.** `APIFY_MONITORED_ACCOUNTS` (comma-separated handles)
-  is the only thing you edit to change who's monitored — `ingestApifyPosts()` upserts a
-  `Source` row (`type: social`) per handle on every run, so there's nothing to reseed.
-- **One Actor run per cycle.** All configured handles become one `searchTerms` array
-  (`from:handle -filter:retweets -filter:replies` each), sent to Apify's
-  `run-sync-get-dataset-items` endpoint for the Actor named in `APIFY_ACTOR_ID` (defaults
-  to `apidojo/tweet-scraper`), on the same 20-min `ingest` cron as the RSS feeds
-  (`lib/jobs.ts`).
-- **No X developer account needed.** Posts come from Apify's scraper Actor instead of the
-  X API, so there's no X API tier to buy — just an Apify account and API token.
-  `APIFY_API_TOKEN` unset, or the Actor run failing, both fail closed with a clear
-  `error` in the job result, same as a missing RSS `feedUrl`.
-- **Broader relevance gate than RSS.** `isMarketSignal()` (`lib/relevance.ts`) looks for
-  general crypto/market language or a `$TICKER`/percentage pattern, not an explicit
-  Robinhood Chain mention — the point of X here is ambient market mood, not on-topic
-  news. `social_pulse` still requires ≥ 3 relevant posts before it'll write a story.
-- **Never shown as a tweet.** Posts are paraphrased into an original piece and
-  attributed by `@handle` with a link out — see editorial rule 6.
-- **Swapping the Actor.** Different Apify Twitter/X scraper Actors return slightly
-  different dataset item shapes — if you point `APIFY_ACTOR_ID` at a different Actor,
-  update the `ApifyTweetItem` mapping in `lib/sources/apify-ingest.ts` to match its
-  output fields (text, url, createdAt, author username, retweet/reply flags).
+- **X/Twitter ingestion was removed.** Apify is paid and the Quorum pipeline no longer
+  touches X. `lib/sources/apify-ingest.ts` and every `APIFY_*` variable are gone.
+- **`market_pulse` template** (was `social_pulse`). `lib/market/pulse.ts` looks up the
+  most liquid Dexscreener pair for the busiest tracked `trending`/`defi` tokens and reads
+  24h price change, volume, liquidity and buy/sell transaction counts.
+- **Tone is computed in code, not by the model.** Each token gets a `tone` from its price
+  move (beyond +/-5%) and buy share (above 55% / below 45%); the whole market gets
+  `risk-on` / `mixed` / `risk-off`. The LLM only writes around those labels.
+- **"Search on X" links:** under each `market_pulse` article, the source list adds a plain
+  `x.com/search` link for each of the top 5 tokens, labelled "link only, not Quorum
+  analysis". Quorum does not fetch, read or summarize anything from X — the links are
+  just a shortcut for readers (`xSearchUrl()` in `lib/market/pulse.ts`).
+- **Score and warnings:** each token also gets a 0-100 `sentimentScore` (50 = neutral,
+  from price change + buy share), and the market gets an average score plus a
+  `bullBearRatio`. `warnings` flag thin liquidity, volume >10x liquidity and one-sided
+  buy/sell flow — indicators only, never proof of wash trading.
+- **"Sentiment" means measured behavior only** — editorial rule 6 forbids the model from
+  claiming to know what any social account or community is saying.
+- **Quota:** if none of the last 3 articles was a `market_pulse`, the next `generate` cycle
+  is forced to be one (`applyPulseQuota()` in `lib/llm/generate.ts`). If Dexscreener has
+  fewer than 3 tokens with data that cycle, it falls back to the normal random topic
+  instead of skipping.
+- No API key required.
 
 ### Wallet + $QUORUM gating
 
@@ -297,7 +296,7 @@ lib/
   auth/              admin session (Edge-safe HMAC cookie) + cron authorisation
   llm/               MiMo client, system prompt, generation pipeline
   market/            DefiLlama, Morpho, stock tokens, on-chain pools, refresh job
-  sources/           RSS + X/Twitter ingestion (ingest.ts, apify-ingest.ts)
+  sources/           RSS ingestion (ingest.ts) + market pulse (market/pulse.ts)
   wallet/            EIP-6963 connect (client) + $QUORUM balanceOf check (server)
   presenters/        DB → view models, with sample-data fallbacks
 data/                sample content used only when nothing is live yet
@@ -325,11 +324,6 @@ From brief §6.1, §13 and §16 — enforced in `lib/llm/prompts.ts`:
 
 - Confirm BeInCrypto and Coinfomania offer official feeds, and check their robots.txt/ToS.
   Leave a feed URL blank and that source is skipped — there is deliberately no scraper.
-- **X ingestion needs an Apify account/token set up and `APIFY_MONITORED_ACCOUNTS`
-  populated** before it does anything — `APIFY_API_TOKEN` unset means `social_pulse`
-  never has enough data and `generateArticle()` just skips that cycle. Also worth
-  deciding up front which accounts are appropriate to quote-by-proxy in a published
-  story, and checking the chosen scraper Actor's own usage terms.
 - Confirm the DefiLlama chain slug, the Morpho USDG market id, and the Stock Token
   contract addresses once Robinhood Chain is listed and documented.
 - **$QUORUM isn't deployed yet.** `QUORUM_TOKEN_ADDRESS` is a placeholder env var — set it
