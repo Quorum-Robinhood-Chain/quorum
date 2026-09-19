@@ -14,10 +14,6 @@ export const metadata: Metadata = {
 export default function TokensPage() {
   return (
     <main>
-      <div className="disclaimer-strip">
-        Not financial advice. Quorum is independent and not affiliated with
-        Robinhood Markets, Inc.
-      </div>
       <Reveal>
         <TokensSection />
       </Reveal>
