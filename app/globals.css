@@ -285,6 +285,13 @@ header.site {
   height: 18px;
 }
 
+.logo .logo-img {
+  height: 40px;
+  width: auto;
+  display: block;
+  flex: 0 0 auto;
+}
+
 .logo span.chain {
   color: var(--lime);
   font-weight: 700;
@@ -1612,6 +1619,15 @@ footer.site {
   background: var(--lime);
 }
 
+/* Navy logo would vanish on the dark footer, so sit it on a white tile. */
+.footer-brand .logo .logo-img {
+  background: var(--white);
+  padding: 4px;
+  border-radius: 4px;
+  height: 44px;
+  box-sizing: border-box;
+}
+
 .footer-brand p {
   font-size: 13.5px;
   color: #A0AEC0;
@@ -1716,6 +1732,10 @@ footer.site {
 
   .logo {
     font-size: 19px;
+  }
+
+  .logo .logo-img {
+    height: 32px;
   }
 
   .hero {

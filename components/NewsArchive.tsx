@@ -8,6 +8,24 @@ import { CategoryThumb } from '@/lib/categoryVisual';
 // How many articles to show per page before paginating.
 const PAGE_SIZE = 10;
 
+// Build a compact page list (1 ... 4 5 6 ... 20) so the pager stays short
+// no matter how many articles there are.
+function getPageItems(current: number, total: number): (number | '…')[] {
+  if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1);
+
+  const pages = new Set([1, total, current - 1, current, current + 1]);
+  const sorted = [...pages]
+    .filter((n) => n >= 1 && n <= total)
+    .sort((a, b) => a - b);
+
+  const items: (number | '…')[] = [];
+  sorted.forEach((n, i) => {
+    if (i > 0 && n - sorted[i - 1] > 1) items.push('…');
+    items.push(n);
+  });
+  return items;
+}
+
 export default function NewsArchive({
   articles,
   categories,
@@ -154,20 +172,27 @@ export default function NewsArchive({
           </button>
 
           <div className="flex items-center gap-1.5">
-            {Array.from({ length: totalPages }, (_, i) => i + 1).map(
-              (pageNumber) => (
+            {getPageItems(page, totalPages).map((item, i) =>
+              item === '…' ? (
+                <span
+                  key={`gap-${i}`}
+                  className="flex h-7 w-5 items-center justify-center text-xs text-gray-400"
+                >
+                  …
+                </span>
+              ) : (
                 <button
-                  key={pageNumber}
+                  key={item}
                   type="button"
-                  onClick={() => setPage(pageNumber)}
-                  aria-current={pageNumber === page ? 'page' : undefined}
+                  onClick={() => setPage(item)}
+                  aria-current={item === page ? 'page' : undefined}
                   className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-semibold transition-colors ${
-                    pageNumber === page
+                    item === page
                       ? 'bg-ink text-white'
                       : 'text-gray-600 hover:bg-panel'
                   }`}
                 >
-                  {pageNumber}
+                  {item}
                 </button>
               ),
             )}

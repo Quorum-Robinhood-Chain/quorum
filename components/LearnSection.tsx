@@ -1,4 +1,5 @@
 import { learnGuides } from '@/data/learn';
+import { CategoryThumb } from '@/lib/categoryVisual';
 
 // Learn page: explainer content, not a live-data template.
 export default function LearnSection() {
@@ -17,6 +18,10 @@ export default function LearnSection() {
             href={guide.href}
             className="group flex flex-col gap-2 rounded-card border border-line p-[18px] transition-colors hover:border-gray-400"
           >
+            <CategoryThumb
+              category="Learn"
+              className="mb-1 flex aspect-video w-full items-center justify-center overflow-hidden rounded-card bg-[#00152B]"
+            />
             <span className="text-[11.5px] font-bold uppercase tracking-wide text-olive">
               Explainer
             </span>
