@@ -32,27 +32,11 @@ export default async function TokensSection() {
         </span>
       )}
 
-      {/* Trending and Defi sit SIDE BY SIDE (not stacked). Each category
-          keeps its own 2-column × 5-row sub-grid, so visually you get
-          4 columns total: col 1-2 = trending, col 3-4 = defi. Index
-          numbering (#1-#10) is still per-category, so if one category
-          has fewer than 10 tokens it never "leaks" into the other
-          category's columns. */}
       <div className="flex flex-col gap-8 lg:flex-row lg:gap-6">
         {CATEGORY_ORDER.map((category) => {
           let rows = trendingTokens.filter((t) => t.category === category);
           if (rows.length === 0) return null;
 
-          // Tokens that already have a price take priority over ones still
-          // showing "—", and we only ever show the top 10. trendingTokens
-          // (from getTokensPresentation()) is already sorted by volume, so
-          // this re-sort only breaks ties on "has a price yet" — the
-          // top-10 cap is a display cap, not a ranking decision: whichever
-          // curated `defi` tokens are moving the most right now (or newly
-          // discovered `trending` tokens) surface automatically, with no
-          // need to hand-edit anything when rankings shift. Only which
-          // tokens are eligible at all stays manual (prisma/seed.ts for
-          // defi — see lib/market/external-links.ts).
           rows = [...rows]
             .sort((a, b) => Number(b.price !== '—') - Number(a.price !== '—'))
             .slice(0, 10);
@@ -65,9 +49,6 @@ export default async function TokensSection() {
                   : '10 Top Defi Token'}
               </h3>
 
-              {/* Fixed at 5 rows on every breakpoint (not fewer on large
-                  screens) so it always reads as 2 columns × 5 rows —
-                  genuinely flowing down, not a wide short grid. */}
               <div className="grid grid-flow-col grid-rows-5 auto-cols-fr gap-2.5">
                 {rows.map((token, index) => (
                   <a

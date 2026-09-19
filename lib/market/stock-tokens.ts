@@ -14,9 +14,6 @@ export interface StockTokenPrice {
   warning?: string;
 }
 
-// Verify that the given stock token contract is accessible on-chain. `contractAddress`
-// comes from the Token row, which is synced from Robinhood's own /rhj/assets catalog
-// (see lib/market/sync-stock-tokens.ts) — no separate STOCK_TOKEN_MAP env var needed.
 async function verifyContract(
   address: string,
 ): Promise<{ ok: boolean; error?: string }> {
@@ -35,10 +32,6 @@ export interface TrackedStockToken {
   contractAddress: string | null;
 }
 
-// Fetch live prices for a set of tracked stock tokens from Robinhood's own pricing
-// API (see lib/market/robinhood-assets.ts) — no Finnhub / third-party key needed.
-// Note: this endpoint does not return a 24h % change; compute that from this
-// project's own price-history (MarketSnapshot rows) instead — see refresh.ts.
 export async function fetchStockTokenPrices(
   tokens: TrackedStockToken[],
 ): Promise<StockTokenPrice[]> {

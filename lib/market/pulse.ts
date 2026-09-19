@@ -4,13 +4,6 @@ import {
   type DexscreenerActivity,
 } from './dexscreener';
 
-// "Market sentiment" for the `market_pulse` article template, computed ONLY from
-// measured Dexscreener trading data (24h price change + buy/sell transaction
-// counts). No social media, no opinions. Tone labels are decided here, in code, so
-// the language model never invents its own thresholds or numbers.
-
-// Only the token categories that trending_dex_tokens also covers — Stock Tokens and
-// memecoins are intentionally left out of these stories.
 const PULSE_CATEGORIES = ['trending', 'defi'] as const;
 
 // How many tokens (ranked by latest 24h volume) get a live activity lookup per run.
@@ -27,9 +20,6 @@ const HIGH_VOLUME_TO_LIQUIDITY = 10;
 const ONE_SIDED_SHARE = 0.85;
 const ONE_SIDED_MIN_TRADES = 50;
 
-// Plain X search link for a token symbol — a shortcut for readers to look at live posts
-// themselves. Quorum never fetches, reads or summarizes anything from X: this is only a
-// link the reader opens in their own browser.
 export function xSearchUrl(symbol: string): string {
   return `https://x.com/search?q=${encodeURIComponent('$' + symbol)}&f=live`;
 }
@@ -101,9 +91,6 @@ function scoreToken(change: number | null, buyShare: number | null): number {
 const clamp = (n: number, lo: number, hi: number) =>
   Math.min(hi, Math.max(lo, n));
 
-// 0-100 sentiment score. Starts at 50 (neutral); price change moves it up to +/-25
-// (saturating at +/-20%) and buy share moves it up to +/-25 (saturating at 75%/25%).
-// A missing input simply contributes 0.
 function sentimentScore(
   change: number | null,
   buyShare: number | null,

@@ -9,14 +9,6 @@ export interface StockTokenSyncResult {
   quoteErrors: string[];
 }
 
-// Sync the Token table's stock_token rows against Robinhood's live catalog, then
-// rank all of them by 24h dollar volume and mark only the top 10 as `isTracked`.
-// Run this on its own schedule (daily is plenty — see .github/workflows/cron.yml)
-// rather than on every 5-minute market refresh: the catalog and the top-10
-// ranking both change slowly, and a full sync makes 190+ HTTP calls out to
-// Robinhood which is unnecessary to repeat every 5 minutes. The 5-minute
-// `market` job (lib/market/refresh.ts) only prices whichever 10 are already
-// marked isTracked, which stays cheap.
 export async function syncStockTokens(): Promise<StockTokenSyncResult> {
   const assets = await fetchActiveStockTokenAssets();
 
@@ -26,9 +18,6 @@ export async function syncStockTokens(): Promise<StockTokenSyncResult> {
 
   const liveSymbols = new Set(assets.map((a) => a.symbol));
 
-  // Drop any previously-synced (or legacy hardcoded) stock_token rows that are no
-  // longer in the live active catalog — e.g. delisted tokens, or the old
-  // "x"-suffixed sample rows (AAPLx, NVDAx, ...) from before this sync existed.
   const existing = await prisma.token.findMany({
     where: { category: 'stock_token' },
   });
@@ -41,8 +30,6 @@ export async function syncStockTokens(): Promise<StockTokenSyncResult> {
     });
   }
 
-  // Upsert every active asset. isTracked starts false and only gets flipped on
-  // for the top 10 by volume below — this keeps the 5-minute price refresh cheap.
   for (const asset of assets) {
     await prisma.token.upsert({
       where: {

@@ -4,9 +4,6 @@ import { env, envNumber } from '@/lib/env';
 // Minimal ERC-20 read surface — balanceOf is all the gate needs.
 const ERC20_ABI = ['function balanceOf(address owner) view returns (uint256)'];
 
-// $QUORUM isn't deployed yet (see README "Open items"). Every value below is a
-// placeholder read from env so the gate can be wired, tested, and flipped on
-// the moment the contract exists — nothing here should be hardcoded.
 export function quorumTokenAddress(): string | undefined {
   return env('QUORUM_TOKEN_ADDRESS');
 }
@@ -21,8 +18,6 @@ export function quorumMinBalance(): number {
 }
 
 function quorumRpcUrl(): string | undefined {
-  // Falls back to the same Robinhood Chain RPC used for market data — override
-  // with QUORUM_TOKEN_RPC_URL if $QUORUM ends up deployed on a different chain.
   return env('QUORUM_TOKEN_RPC_URL') ?? env('RHC_RPC_URL');
 }
 
@@ -35,8 +30,6 @@ export type BalanceCheck =
       detail?: string;
     };
 
-// Whether the gate is configured at all. Lets callers give a clear "not live
-// yet" message instead of a confusing failed balance check.
 export function isQuorumGateConfigured(): boolean {
   return Boolean(quorumTokenAddress() && quorumRpcUrl());
 }

@@ -36,9 +36,6 @@ export default function WalletModal({
 
   const detectedByRdns = new Map(wallets.map((w) => [w.info.rdns, w]));
 
-  // Curated wallets, each paired with its live detection (if any). Use the
-  // detected provider's own icon when present (guaranteed current), falling
-  // back to the bundled logo otherwise.
   const curatedRows = KNOWN_WALLETS.map((known) => {
     const detected = detectedByRdns.get(known.rdns) ?? null;
     return {

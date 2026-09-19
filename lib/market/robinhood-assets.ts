@@ -1,11 +1,3 @@
-// Official Robinhood Chain Stock Token catalog — replaces any hardcoded or
-// third-party-scraped stock token list. Docs: https://docs.robinhood.com/chain/stock-token-apis
-//
-// No API key required; endpoints are public, rate-limited to 60 req/s, and cached
-// upstream. Always call through here rather than hardcoding symbols/addresses —
-// Robinhood adds new Stock Tokens regularly (95 at mainnet launch on 2026-07-01,
-// 190+ by September 2026), so this is the only way the catalog stays current.
-
 const ASSETS_URL = 'https://api.robinhood.com/rhj/assets';
 const PRICES_URL = (symbol: string) =>
   `https://api.robinhood.com/rhj/prices/${encodeURIComponent(symbol)}`;
@@ -36,9 +28,6 @@ export interface StockTokenAsset {
   currentMultiplier: string;
 }
 
-// Fetch every Stock Token Robinhood has deployed on Robinhood Chain (chainId 4663)
-// that is currently active. This is the full, live catalog — filtering down to a
-// smaller displayed set (e.g. top 10 by volume) is a separate, deliberate step.
 export async function fetchActiveStockTokenAssets(): Promise<StockTokenAsset[]> {
   const res = await fetch(ASSETS_URL, { cache: 'no-store' });
 
@@ -76,10 +65,6 @@ export interface StockTokenQuote {
   error?: string;
 }
 
-// Fetch the live bid/ask + volume for a single Stock Token from Robinhood's own
-// pricing endpoint. Price returned is the bid/ask midpoint, raw (not
-// multiplier-adjusted) — multiply by an asset's currentMultiplier if you need the
-// token-equivalent value after a split.
 export async function fetchStockTokenQuote(
   symbol: string,
 ): Promise<StockTokenQuote> {
@@ -141,9 +126,6 @@ export async function fetchStockTokenQuote(
   }
 }
 
-// Fetch quotes for many symbols at once, capped at `concurrency` in flight — the
-// catalog can be 190+ symbols and Robinhood rate-limits at 60 req/s, so this keeps
-// well under that without needing 190 sequential round trips.
 export async function fetchStockTokenQuotes(
   symbols: string[],
   concurrency = 15,

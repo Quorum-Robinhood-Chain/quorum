@@ -1,13 +1,3 @@
-// Standalone entry point for running a scheduled job directly on whatever
-// process invokes this script — used by .github/workflows/cron.yml for
-// `generate` and `weekly-digest`, which call the MiMo LLM API and can run
-// past Vercel Hobby's 10s function timeout (see README §7).
-//
-// `ingest` and `market` stay on the Vercel route (curl'd from the same
-// workflow) — both are quick and there's no reason to pay for a second
-// code path for them.
-//
-// Usage: npx tsx scripts/run-job.ts <job>
 import { runJob, isJobName, JOBS } from '../lib/jobs';
 import { prisma } from '../lib/db';
 
@@ -41,8 +31,6 @@ async function main() {
     console.error(err);
     process.exitCode = 1;
   } finally {
-    // Runners exit the process right after this script returns — close the
-    // connection explicitly rather than relying on process teardown.
     await prisma.$disconnect();
   }
 }

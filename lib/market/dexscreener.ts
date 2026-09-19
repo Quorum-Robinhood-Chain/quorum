@@ -1,15 +1,3 @@
-// Dexscreener public REST API client — the single source of truth for
-// DeFi/meme/trending token market data (price, 24h volume, 24h % change).
-//
-// Docs: https://docs.dexscreener.com/api/reference
-// No API key needed. Rate limit: 300 requests/min for pair & token endpoints.
-//
-// Why this replaces the old RPC-reserve math + Blockscout price-only calls:
-// the numbers shown on the site now come from the exact same place as the
-// "Tokens in this story" link (see lib/market/external-links.ts), so a
-// reader who clicks through sees the same price/volume they just read here
-// instead of a different figure from a different source.
-
 const DEXSCREENER_API_BASE = 'https://api.dexscreener.com';
 
 // Must match the chain slug used in lib/market/external-links.ts — both are
@@ -35,15 +23,7 @@ export interface DexscreenerSnapshot {
   priceUsd: number | null;
   volume24hUsd: number | null;
   priceChange24hPct: number | null;
-  // Which Dexscreener pair this snapshot came from — useful for error
-  // messages, and matches the exact page the "Tokens in this story" link
-  // sends readers to (dexscreener.com/{chain}/{pairAddress}).
   pairAddress: string | null;
-  // Liquidity of that pair — used by sync-trending-tokens.ts to re-verify a
-  // token directly (per-address lookup) instead of trusting whether it still
-  // shows up in the noisy /token-profiles/latest/v1 window (see the comment
-  // on fetchTrendingTokenCandidates below for why that feed is unreliable
-  // for "is this still a legitimate, liquid trending token" on its own).
   liquidityUsd: number | null;
   error?: string;
 }
@@ -86,10 +66,6 @@ async function getJson(url: string): Promise<unknown> {
   return res.json();
 }
 
-// Look up a single, already-known trading pair by its own contract address —
-// this is the exact address behind a dexscreener.com/{chain}/{pairAddress}
-// page. Use this for defi/meme tokens whose pair address is configured in
-// TOKEN_POOL_MAP (the `pool` field — see lib/market/pools.ts).
 export async function fetchDexscreenerPairByAddress(
   pairAddress: string,
 ): Promise<DexscreenerSnapshot> {
@@ -104,11 +80,6 @@ export async function fetchDexscreenerPairByAddress(
   }
 }
 
-// Look up every pair trading a given token's contract address, and return
-// the most liquid one — the same pair Dexscreener itself surfaces first.
-// Use this for trending tokens, which only have a token contract address
-// (from discovery — see fetchTrendingTokenCandidates below), not a
-// hand-configured pair address.
 export async function fetchDexscreenerPairByTokenAddress(
   tokenAddress: string,
 ): Promise<DexscreenerSnapshot> {
@@ -192,31 +163,6 @@ interface TokenProfile {
   tokenAddress: string;
 }
 
-// Discover ERC-20 tokens live on Robinhood Chain via Dexscreener, replacing
-// the previous Blockscout-based discovery (lib/market/blockscout.ts).
-//
-// /token-profiles/latest/v1 lists the newest submitted token profiles
-// across ALL chains and takes no chainId/address filter, so step one is
-// fetching that list and keeping only entries where chainId matches
-// DEXSCREENER_CHAIN_SLUG. That endpoint has no symbol/name/price fields
-// though (just address + metadata) — so step two batches those addresses
-// through /tokens/v1/{chainId}/{tokenAddresses} (up to 30 per call) to get
-// each one's actual pair data (symbol, name, price, liquidity).
-//
-// IMPORTANT — no legitimacy check: anyone can deploy an ERC-20 on this chain
-// with any name/symbol (including copying "Apple", "Robinhood", etc), and
-// submitting a Dexscreener token profile doesn't vet that either. This
-// module is a discovery feed, not a verification service. By design (per
-// product decision) this does NOT filter by liquidity — every Robinhood
-// Chain token that has a Dexscreener profile AND at least one tradeable
-// pair is surfaced, no matter how thin that pair is. Callers MUST NOT treat
-// a match here as an official Stock Token — see
-// lib/market/sync-trending-tokens.ts for how that's enforced.
-//
-// Caveat vs. the old Blockscout source: this only surfaces tokens that have
-// submitted a Dexscreener profile, not every ERC-20 that's actually live/
-// held on-chain — so it's a narrower, opt-in discovery feed rather than an
-// exhaustive one.
 export async function fetchTrendingTokenCandidates(): Promise<
   TrendingTokenCandidate[]
 > {
@@ -238,11 +184,6 @@ export async function fetchTrendingTokenCandidates(): Promise<
     `${DEXSCREENER_API_BASE}/tokens/v1/${DEXSCREENER_CHAIN_SLUG}/${addresses.join(',')}`,
   )) as DexscreenerPair[] | null;
 
-  // A token can trade on more than one DEX/pair — keep only the most liquid
-  // pair per base-token address, the same "pick the canonical pair" logic
-  // used by fetchDexscreenerPairByTokenAddress above. This is just picking
-  // which pair represents the token, NOT a liquidity floor — no pair is
-  // excluded for being thin.
   const bestPairByAddress = new Map<string, DexscreenerPair>();
 
   for (const pair of pairs ?? []) {

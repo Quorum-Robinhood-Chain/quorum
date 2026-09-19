@@ -37,8 +37,6 @@ export type Article = {
   automated: boolean;
   source: SourceAttribution;
   href: string;
-  /** True while the article is still inside the holder-only window (< 1 hour old).
-   *  Omitted (falsy) on the static sample/fallback data, which is always public. */
   gated?: boolean;
 };
 
@@ -54,10 +52,6 @@ export type NetworkStat = {
   trend?: 'up' | 'down';
 };
 
-// Memecoins kept as a separate category, not mixed with Stock/DeFi.
-// `trending` = auto-discovered via Dexscreener (lib/market/sync-trending-tokens.ts),
-// as opposed to stock_token (Robinhood's own catalog) or defi/meme (hand-configured
-// via TOKEN_POOL_MAP).
 export type TokenCategory = 'stock_token' | 'defi' | 'meme' | 'trending';
 
 export type TokenRow = {
@@ -66,13 +60,7 @@ export type TokenRow = {
   name: string;
   dex: string;
   category: TokenCategory;
-  // On-chain contract address, when known. Symbols/names are not unique
-  // (anyone can deploy a token called "Morpho" — see lib/market/dexscreener.ts),
-  // so any off-site market link MUST key off this, not off symbol/name alone.
-  // See lib/market/external-links.ts.
   contractAddress: string | null;
-  // Dexscreener chain slug that contractAddress lives on (e.g. "robinhood",
-  // "ethereum", "solana"). null means "robinhood" — see external-links.ts.
   chainSlug: string | null;
   price: string;
   change24h: string;
@@ -105,9 +93,6 @@ export type ProtocolRow = {
   url: string;
 };
 
-// Fields used by the /admin moderation queue, plus audit trail.
-// Auto-publish model: every automated draft is `published` immediately.
-// `unpublished` is the reversible emergency takedown an admin can apply.
 export type ArticleStatus = 'published' | 'unpublished';
 
 export type ReviewArticle = {

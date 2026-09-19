@@ -178,13 +178,6 @@ export async function refreshMarketData(): Promise<RefreshResult> {
     }
   });
 
-  // Price, 24h volume and 24h % change for DeFi/meme tokens, read straight
-  // from the exact Dexscreener pair configured for each symbol in
-  // TOKEN_POOL_MAP (the `pool` field — a pair contract address, same kind of
-  // address the "Tokens in this story" link on an article points at). This
-  // replaces the old raw-RPC reserve math + manual swap-log volume sum:
-  // Dexscreener already computes all three numbers for that exact pair, so
-  // what's shown on the site matches what the link goes to.
   await safely('dexscreener:defi-meme', async () => {
     const tokens = await prisma.token.findMany({
       where: { category: { in: ['defi', 'meme'] }, isTracked: true },
@@ -314,11 +307,6 @@ export async function refreshMarketData(): Promise<RefreshResult> {
     }
   });
 
-  // Trending tokens only have a bare token contract address (from Blockscout
-  // discovery — see sync-trending-tokens.ts), not a hand-picked pair. Ask
-  // Dexscreener for every pair trading that address and use its most liquid
-  // one — same logic Dexscreener's own token page uses to pick a default
-  // pair, so this lines up with what a reader sees after clicking through.
   await safely('dexscreener:trending', async () => {
     const tokens = await prisma.token.findMany({
       where: { category: 'trending', isTracked: true },
