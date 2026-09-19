@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/db';
 import { chatCompletion } from './client';
+import { stripDashes, stripDashesHeadline } from '@/lib/text-clean';
 import {
   SYSTEM_PROMPT,
   TEMPLATE_INSTRUCTIONS,
@@ -395,9 +396,10 @@ export async function generateArticle(
     data: {
       templateType: TEMPLATE_LABELS[template],
       category: generated.category || 'Markets',
-      headline: generated.headline,
-      dek: generated.dek,
-      body: generated.body,
+      // Safety net: the prompt forbids em dashes, but models still slip.
+      headline: stripDashesHeadline(generated.headline),
+      dek: generated.dek ? stripDashes(generated.dek) : generated.dek,
+      body: stripDashes(generated.body),
       automated: true,
       sourceNames: data.sourceNames,
       sourceUrls: data.sourceUrls,

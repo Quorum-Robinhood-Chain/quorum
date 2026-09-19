@@ -4,6 +4,7 @@ import { Bot, Newspaper, Clock, Lock } from 'lucide-react';
 import { getArticleById } from '@/lib/presenters/articles';
 import { paragraphs } from '@/lib/format';
 import GatedArticleBody from '@/components/GatedArticleBody';
+import { RelatedTokens, ArticleSources } from '@/components/ArticleExtras';
 
 // Cache the page for 30s. Gate checks are always verified server-side.
 export const revalidate = 30;
@@ -54,23 +55,9 @@ export default async function ArticlePage({
           <p className="mt-3 text-base text-gray-600">{article.dek}</p>
         )}
 
-        {/* Related tokens with external market links */}
-        {article.relatedTokens.length > 0 && (
-          <div className="mt-3 flex flex-wrap items-center gap-2">
-            <span className="text-xs text-gray-400">Tokens in this story:</span>
-            {article.relatedTokens.map((token) => (
-              <a
-                key={token.symbol}
-                href={token.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="rounded-full border border-line px-2.5 py-1 text-xs font-semibold text-olive hover:bg-panel"
-              >
-                {token.symbol} →
-              </a>
-            ))}
-          </div>
-        )}
+        {/* Related tokens with external market links — holder-only while gated
+            (the data is already empty server-side; the check just keeps it explicit). */}
+        {!article.gated && <RelatedTokens tokens={article.relatedTokens} />}
 
         {/* Article attribution and publication details */}
         <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-1 border-b border-line pb-4 text-xs text-gray-400">
@@ -112,27 +99,12 @@ export default async function ArticlePage({
             </span>
           )}
 
-          {article.sourceNames.length > 0 && (
-            <span className="flex flex-wrap items-center gap-1">
-              via{' '}
-              {article.sourceNames.map((name, i) => (
-                <span key={`${name}-${i}`} className="flex items-center gap-1">
-                  {article.sourceUrls[i] ? (
-                    <a
-                      href={article.sourceUrls[i]}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="underline hover:text-gray-600"
-                    >
-                      {name}
-                    </a>
-                  ) : (
-                    name
-                  )}
-                  {i < article.sourceNames.length - 1 && ','}
-                </span>
-              ))}
-            </span>
+          {/* Sources are holder-only while gated. */}
+          {!article.gated && (
+            <ArticleSources
+              names={article.sourceNames}
+              urls={article.sourceUrls}
+            />
           )}
         </div>
 

@@ -49,7 +49,7 @@ export default async function TokensSection() {
                   : '10 Top Defi Token'}
               </h3>
 
-              <div className="grid grid-flow-col grid-rows-5 auto-cols-fr gap-2.5">
+              <div className="grid grid-cols-2 gap-2.5">
                 {rows.map((token, index) => (
                   <a
                     key={token.id}

@@ -5,11 +5,19 @@ import { Lock, Clock } from 'lucide-react';
 import { useWallet } from '@/lib/wallet/WalletProvider';
 import { paragraphs } from '@/lib/format';
 import ConnectWalletButton from '@/components/ConnectWalletButton';
+import { RelatedTokens, ArticleSources } from '@/components/ArticleExtras';
+import type { RelatedToken } from '@/lib/presenters/articles';
 
 type GateState =
   | { phase: 'idle' }
   | { phase: 'checking' }
-  | { phase: 'unlocked'; body: string }
+  | {
+      phase: 'unlocked';
+      body: string;
+      sourceNames: string[];
+      sourceUrls: string[];
+      relatedTokens: RelatedToken[];
+    }
   | {
       phase: 'denied';
       error:
@@ -48,7 +56,13 @@ export default function GatedArticleBody({
         if (cancelled) return;
 
         if (res.ok && data.article?.body) {
-          setState({ phase: 'unlocked', body: data.article.body });
+          setState({
+            phase: 'unlocked',
+            body: data.article.body,
+            sourceNames: data.article.sourceNames ?? [],
+            sourceUrls: data.article.sourceUrls ?? [],
+            relatedTokens: data.article.relatedTokens ?? [],
+          });
         } else {
           setState({
             phase: 'denied',
@@ -70,11 +84,20 @@ export default function GatedArticleBody({
 
   if (state.phase === 'unlocked') {
     return (
-      <div className="mt-6 space-y-7 text-[16px] leading-[1.75] text-ink">
-        {paragraphs(state.body).map((paragraph, i) => (
-          <p key={i}>{paragraph}</p>
-        ))}
-      </div>
+      <>
+        {/* Holder-only extras: revealed only after the server verified the balance. */}
+        <RelatedTokens tokens={state.relatedTokens} />
+        {state.sourceNames.length > 0 && (
+          <div className="mt-3 text-xs text-gray-400">
+            <ArticleSources names={state.sourceNames} urls={state.sourceUrls} />
+          </div>
+        )}
+        <div className="mt-6 space-y-7 text-[16px] leading-[1.75] text-ink">
+          {paragraphs(state.body).map((paragraph, i) => (
+            <p key={i}>{paragraph}</p>
+          ))}
+        </div>
+      </>
     );
   }
 
