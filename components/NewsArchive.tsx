@@ -121,17 +121,11 @@ export default function NewsArchive({
                 <span>·</span>
                 <span>{article.readTime}</span>
 
-                {article.automated ? (
-                  <span className="ml-1 rounded-full bg-lime-tint px-2 py-0.5 font-semibold text-olive">
-                    Automated
-                  </span>
-                ) : (
-                  article.source.name !== 'Quorum' && (
-                    <>
-                      <span>·</span>
-                      <span>via {article.source.name}</span>
-                    </>
-                  )
+                {!article.automated && article.source.name !== 'Quorum' && (
+                  <>
+                    <span>·</span>
+                    <span>via {article.source.name}</span>
+                  </>
                 )}
               </div>
             </div>

@@ -16,9 +16,6 @@ export default async function Hero() {
             <span className="pulse" />
             Breaking
           </span>{' '}
-          {heroArticle.automated && (
-            <span className="badge automated">Automated summary</span>
-          )}{' '}
           {heroArticle.gated && (
             <span className="badge automated" style={{ color: 'var(--lime)' }}>
               <Lock
