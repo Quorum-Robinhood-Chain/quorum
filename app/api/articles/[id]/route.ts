@@ -41,5 +41,7 @@ export async function GET(
     );
   }
 
-  return NextResponse.json({ article: { ...article, body: gatedResult.body } });
+  // Gate passed: release the holder-only fields (body, sources, token links).
+  const { ok: _ok, ...restricted } = gatedResult;
+  return NextResponse.json({ article: { ...article, ...restricted } });
 }

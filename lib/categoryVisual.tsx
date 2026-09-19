@@ -12,12 +12,24 @@ import type { ArticleCategory } from '@/types';
 
 export const CATEGORY_VISUAL: Record<
   ArticleCategory,
-  { icon: LucideIcon; color: string }
+  { icon: LucideIcon; color: string; image?: string }
 > = {
-  Markets: { icon: TrendingUp, color: '#CC0000' },
-  Ecosystem: { icon: Network, color: '#3182CE' },
-  Tokens: { icon: Coins, color: '#D69E2E' },
-  'Stock Tokens': { icon: LineChart, color: '#00875A' },
+  Markets: {
+    icon: TrendingUp,
+    color: '#CC0000',
+    image: '/categories/markets.jpg',
+  },
+  Ecosystem: {
+    icon: Network,
+    color: '#3182CE',
+    image: '/categories/ecosystem.jpg',
+  },
+  Tokens: { icon: Coins, color: '#D69E2E', image: '/categories/tokens.jpg' },
+  'Stock Tokens': {
+    icon: LineChart,
+    color: '#00875A',
+    image: '/categories/stock-tokens.jpg',
+  },
   Security: { icon: ShieldCheck, color: '#9F7AEA' },
   Learn: { icon: BookOpen, color: '#38B2AC' },
 };
@@ -29,7 +41,8 @@ export function getCategoryVisual(category: ArticleCategory) {
   return CATEGORY_VISUAL[category] ?? FALLBACK_VISUAL;
 }
 
-// Render the category icon inside a thumbnail container.
+// Render the category thumbnail: a themed photo when one is configured,
+// falling back to the category icon centered in the thumb container.
 export function CategoryThumb({
   category,
   className = 'thumb',
@@ -38,34 +51,20 @@ export function CategoryThumb({
   className?: string;
 }) {
   const visual = getCategoryVisual(category);
+
+  if (visual.image) {
+    return (
+      <div className={className} aria-hidden="true">
+        <img src={visual.image} alt="" className="thumb-image" />
+      </div>
+    );
+  }
+
   const Icon = visual.icon;
 
   return (
     <div className={className} aria-hidden="true">
       <Icon color={visual.color} strokeWidth={1.6} className="thumb-icon" />
     </div>
-  );
-}
-
-// Render the category icon with optional category color.
-export function CategoryIcon({
-  category,
-  className = 'cat-icon',
-  accent = false,
-}: {
-  category: ArticleCategory;
-  className?: string;
-  accent?: boolean;
-}) {
-  const visual = getCategoryVisual(category);
-  const Icon = visual.icon;
-
-  return (
-    <Icon
-      className={className}
-      color={accent ? visual.color : 'currentColor'}
-      strokeWidth={2.2}
-      aria-hidden="true"
-    />
   );
 }

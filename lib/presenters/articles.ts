@@ -132,24 +132,34 @@ export async function getArticlesPresentation(
       };
     }
 
-    const articles: Article[] = rows.map((a: any) => ({
-      id: a.id,
-      category: toArticleCategory(a.category),
-      headline: a.headline,
-      dek: a.dek ?? '',
-      desk: a.automated
-        ? 'Quorum Automated Desk'
-        : (a.sourceNames[0] ?? 'Quorum'),
-      timeAgo: timeAgo(a.publishedAt ?? a.generatedAt),
-      readTime: estimateReadTime(a.dek || a.headline),
-      automated: a.automated,
-      source: {
-        name: toSourceName(a.sourceNames[0]),
-        url: a.sourceUrls[0] ?? '#',
-      },
-      href: `/news/${a.id}`,
-      gated: isGated(a.publishedAt ?? a.generatedAt),
-    }));
+    const articles: Article[] = rows.map((a: any) => {
+      const gated = isGated(a.publishedAt ?? a.generatedAt);
+
+      return {
+        id: a.id,
+        category: toArticleCategory(a.category),
+        headline: a.headline,
+        dek: a.dek ?? '',
+        // While gated, the original source is withheld (name AND link), so the
+        // paywall can't be bypassed by clicking through. 'Quorum' is hidden by
+        // the card components, so no "via …" is rendered.
+        desk:
+          a.automated || gated
+            ? 'Quorum Automated Desk'
+            : (a.sourceNames[0] ?? 'Quorum'),
+        timeAgo: timeAgo(a.publishedAt ?? a.generatedAt),
+        readTime: estimateReadTime(a.dek || a.headline),
+        automated: a.automated,
+        source: gated
+          ? { name: 'Quorum' as const, url: '#' }
+          : {
+              name: toSourceName(a.sourceNames[0]),
+              url: a.sourceUrls[0] ?? '#',
+            },
+        href: `/news/${a.id}`,
+        gated,
+      };
+    });
 
     return {
       articles,
@@ -219,6 +229,7 @@ export interface ArticleDetail {
   desk: string;
   timeAgo: string;
   automated: boolean;
+  /** Empty while gated — sources are withheld server-side, same as the body. */
   sourceNames: string[];
   sourceUrls: string[];
   gated: boolean;
@@ -226,7 +237,35 @@ export interface ArticleDetail {
   minutesUntilUnlock: number;
   requiredBalance: number;
 
+  /** Empty while gated — the external market links are a paid perk too. */
   relatedTokens: RelatedToken[];
+}
+
+/** The parts of an article that are only revealed to holders (or after the gate window). */
+export type ArticleRestricted = {
+  body: string;
+  sourceNames: string[];
+  sourceUrls: string[];
+  relatedTokens: RelatedToken[];
+};
+
+// Build the holder-only fields of an article (full body + sources + token links).
+function buildRestricted(
+  a: any,
+  tokens: Pick<
+    TokenRow,
+    'symbol' | 'category' | 'contractAddress' | 'chainSlug'
+  >[],
+): ArticleRestricted {
+  return {
+    body: a.body,
+    sourceNames: a.sourceNames,
+    sourceUrls: a.sourceUrls,
+    relatedTokens: matchRelatedTokens(
+      `${a.headline} ${a.dek ?? ''} ${a.body}`,
+      tokens,
+    ),
+  };
 }
 
 export async function getArticleById(
@@ -247,28 +286,30 @@ export async function getArticleById(
     // shown on /tokens, so a detected mention always leads somewhere real.
     const { tokens } = await getTokensPresentation();
 
+    // While gated, everything sensitive is withheld here on the server:
+    // body, sources (names + links) and external market links. Nothing
+    // reaches the HTML / API payload unless the gate check passes.
+    const restricted: ArticleRestricted = gated
+      ? { body: '', sourceNames: [], sourceUrls: [], relatedTokens: [] }
+      : buildRestricted(a, tokens);
+
     return {
       id: a.id,
       category: toArticleCategory(a.category),
       headline: a.headline,
       dek: a.dek ?? '',
-      body: gated ? '' : a.body,
       desk: a.automated
         ? 'Quorum Automated Desk'
-        : (a.sourceNames[0] ?? 'Quorum'),
+        : gated
+          ? 'Quorum'
+          : (a.sourceNames[0] ?? 'Quorum'),
       timeAgo: timeAgo(publishedAt),
       automated: a.automated,
-      sourceNames: a.sourceNames,
-      sourceUrls: a.sourceUrls,
       gated,
       unlocksAt: gated ? gateUnlocksAt(publishedAt).toISOString() : null,
       minutesUntilUnlock: gated ? minutesUntilUnlock(publishedAt) : 0,
       requiredBalance: quorumMinBalance(),
-      // Body is withheld while gated, so this only sees headline + dek until unlock.
-      relatedTokens: matchRelatedTokens(
-        `${a.headline} ${a.dek ?? ''} ${gated ? '' : a.body}`,
-        tokens,
-      ),
+      ...restricted,
     };
   } catch {
     return null;
@@ -276,10 +317,9 @@ export async function getArticleById(
 }
 
 export type GatedBodyResult =
-  | {
+  | ({
       ok: true;
-      body: string;
-    }
+    } & ArticleRestricted)
   | {
       ok: false;
       error:
@@ -314,10 +354,7 @@ export async function getGatedArticleBody(
   const publishedAt = a.publishedAt ?? a.generatedAt;
 
   if (!isGated(publishedAt)) {
-    return {
-      ok: true,
-      body: a.body,
-    };
+    return { ok: true, ...(await restrictedFor(a)) };
   }
 
   if (!address) {
@@ -356,8 +393,10 @@ export async function getGatedArticleBody(
     };
   }
 
-  return {
-    ok: true,
-    body: a.body,
-  };
+  return { ok: true, ...(await restrictedFor(a)) };
+}
+
+async function restrictedFor(a: any): Promise<ArticleRestricted> {
+  const { tokens } = await getTokensPresentation();
+  return buildRestricted(a, tokens);
 }

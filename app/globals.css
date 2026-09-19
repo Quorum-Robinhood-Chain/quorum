@@ -896,6 +896,20 @@ nav.primary.open {
   padding: 20px;
   aspect-ratio: 16/8;
   box-shadow: 0 4px 12px rgba(0, 40, 85, 0.08);
+  overflow: hidden;
+}
+
+/* When a themed photo is shown instead of the network graphic, let it run
+   edge-to-edge rather than sitting inside the graphic's 20px padding. */
+.hero-figure:has(.hero-figure-image) {
+  padding: 0;
+}
+
+.hero-figure-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
 }
 
 .hero-side {
@@ -1038,6 +1052,7 @@ nav.primary.open {
   display: flex;
   align-items: center;
   justify-content: center;
+  overflow: hidden;
 }
 
 .card .cat {
@@ -1121,15 +1136,23 @@ nav.primary.open {
   align-items: center;
   justify-content: center;
   flex: 0 0 auto;
+  overflow: hidden;
 }
 
-/* ---------- Category thumb icons ---------- */
+/* ---------- Category thumb icons / images ---------- */
 
 .thumb-icon {
   width: 34%;
   height: 34%;
   max-width: 48px;
   max-height: 48px;
+}
+
+.thumb-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
 }
 
 .list-story .thumb .thumb-icon {
@@ -1144,15 +1167,6 @@ nav.primary.open {
   color: var(--lime);
   text-transform: uppercase;
   letter-spacing: 0.06em;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.list-story .cat .cat-icon {
-  width: 14px;
-  height: 14px;
-  flex: 0 0 auto;
 }
 
 .list-story h3 {
