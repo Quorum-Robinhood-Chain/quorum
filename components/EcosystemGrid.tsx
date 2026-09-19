@@ -6,11 +6,11 @@ import {
 } from '@/data/ecosystem';
 
 export default async function EcosystemGrid() {
-  // Fetch ecosystem protocols and the 3 latest ecosystem news articles.
+  // Fetch ecosystem protocols and ecosystem news from the last 24 hours.
   const [{ protocols, usingLiveData }, { articles: ecosystemNews }] =
     await Promise.all([
       getEcosystemPresentation(),
-      getArticlesPresentation({ category: 'Ecosystem', limit: 3 }),
+      getArticlesPresentation({ category: 'Ecosystem', sinceHours: 24 }),
     ]);
 
   return (
@@ -74,22 +74,26 @@ export default async function EcosystemGrid() {
           ))}
       </div>
 
-      {/* Latest ecosystem news */}
-      {ecosystemNews.length > 0 && (
-        <div className="mt-10">
-          <div className="mb-4 flex items-baseline justify-between">
-            <h2 className="font-display text-lg font-extrabold text-ink">
-              Ecosystem news
-            </h2>
+      {/* Latest ecosystem news from the last 24 hours */}
+      <div className="mt-10">
+        <div className="mb-4 flex items-baseline justify-between">
+          <h2 className="font-display text-lg font-extrabold text-ink">
+            Ecosystem news
+          </h2>
 
-            <a
-              className="text-[13.5px] font-semibold text-olive hover:underline"
-              href="/news"
-            >
-              All news
-            </a>
-          </div>
+          <a
+            className="text-[13.5px] font-semibold text-olive hover:underline"
+            href="/news"
+          >
+            All news
+          </a>
+        </div>
 
+        {ecosystemNews.length === 0 ? (
+          <p className="text-sm text-gray-400">
+            No ecosystem news in the last 24 hours.
+          </p>
+        ) : (
           <div className="flex flex-col divide-y divide-line rounded-card border border-line">
             {ecosystemNews.map((article) => (
               <a
@@ -111,8 +115,8 @@ export default async function EcosystemGrid() {
               </a>
             ))}
           </div>
-        </div>
-      )}
+        )}
+      </div>
 
       {/* Data source disclaimer */}
       <p className="mt-8 text-xs text-gray-400">

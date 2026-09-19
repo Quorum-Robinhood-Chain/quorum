@@ -2,13 +2,13 @@ import { getArticlesPresentation } from '@/lib/presenters/articles';
 import { getNetworkSnapshotPresentation } from '@/lib/presenters/network-snapshot';
 
 export default async function MarketsOverview() {
-  // Fetch market statistics and the latest market-related articles
+  // Fetch market statistics and market-related articles from the last 24 hours
   const [
     { items: marketStats, usingAnyLiveData },
     { articles: marketArticles },
   ] = await Promise.all([
     getNetworkSnapshotPresentation(),
-    getArticlesPresentation({ limit: 3 }),
+    getArticlesPresentation({ sinceHours: 24 }),
   ]);
 
   return (
@@ -59,7 +59,13 @@ export default async function MarketsOverview() {
         </a>
       </div>
 
-      {/* Market-related articles */}
+      {/* Market-related articles from the last 24 hours */}
+      {marketArticles.length === 0 && (
+        <p className="mb-10 text-sm text-gray-400">
+          No market news in the last 24 hours.
+        </p>
+      )}
+
       <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
         {marketArticles.map((article) => (
           <article
@@ -92,27 +98,21 @@ export default async function MarketsOverview() {
               <span>·</span>
               <span>{article.timeAgo}</span>
 
-              {article.automated ? (
-                <span className="ml-1 rounded-full bg-lime-tint px-2 py-0.5 font-semibold text-olive">
-                  Automated
-                </span>
-              ) : (
-                article.source.name !== 'Quorum' && (
-                  <>
-                    <span>·</span>
-                    <span>
-                      via{' '}
-                      <a
-                        className="relative z-10 hover:underline"
-                        href={article.source.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                      >
-                        {article.source.name}
-                      </a>
-                    </span>
-                  </>
-                )
+              {!article.automated && article.source.name !== 'Quorum' && (
+                <>
+                  <span>·</span>
+                  <span>
+                    via{' '}
+                    <a
+                      className="relative z-10 hover:underline"
+                      href={article.source.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      {article.source.name}
+                    </a>
+                  </span>
+                </>
               )}
             </div>
           </article>

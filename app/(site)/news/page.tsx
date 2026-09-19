@@ -36,11 +36,6 @@ export default async function NewsPage({
 
   return (
     <main>
-      {/* Financial disclaimer and site independence notice */}
-      <div className="disclaimer-strip">
-        Not financial advice. Quorum is independent and not affiliated with
-        Robinhood Markets, Inc.
-      </div>
 
       {/* News archive with category filters */}
       <Reveal>

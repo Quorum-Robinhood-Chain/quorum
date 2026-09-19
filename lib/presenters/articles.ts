@@ -89,24 +89,46 @@ export async function getArticlesPresentation(
   opts: {
     category?: ArticleCategory;
     limit?: number;
+    /** Only include articles published (or generated, if unpublished-dated) within the last N hours. */
+    sinceHours?: number;
   } = {},
 ): Promise<ArticlesPresentation> {
-  const limit = opts.limit ?? 20;
+  // When sinceHours is set and no explicit limit is given, don't cap the
+  // count — the caller wants "everything from the last N hours".
+  const limit = opts.limit ?? (opts.sinceHours ? undefined : 20);
+
+  const since = opts.sinceHours
+    ? new Date(Date.now() - opts.sinceHours * 60 * 60 * 1000)
+    : undefined;
 
   try {
     const rows = await prisma.article.findMany({
       where: {
         status: 'published',
         ...(opts.category ? { category: opts.category } : {}),
+        // publishedAt drives display/sort; some rows have it null and rely
+        // on generatedAt instead, so check both when windowing by time.
+        ...(since
+          ? {
+              OR: [
+                { publishedAt: { gte: since } },
+                {
+                  AND: [{ publishedAt: null }, { generatedAt: { gte: since } }],
+                },
+              ],
+            }
+          : {}),
       },
       orderBy: { publishedAt: 'desc' },
-      take: limit,
+      ...(limit ? { take: limit } : {}),
     });
 
     if (rows.length === 0) {
+      // With a time window, an empty result is a real "nothing published
+      // in the last N hours" — don't mask it with unrelated sample data.
       return {
-        articles: fallbackSlice(opts.category, limit),
-        usingLiveData: false,
+        articles: since ? [] : fallbackSlice(opts.category, limit),
+        usingLiveData: Boolean(since),
       };
     }
 
@@ -144,13 +166,13 @@ export async function getArticlesPresentation(
 // Return fallback articles filtered by category and limited to the requested count.
 function fallbackSlice(
   category: ArticleCategory | undefined,
-  limit: number,
+  limit: number | undefined,
 ): Article[] {
   const pool = category
     ? FALLBACK_ALL.filter((a) => a.category === category)
     : FALLBACK_ALL;
 
-  return pool.slice(0, limit);
+  return limit ? pool.slice(0, limit) : pool;
 }
 
 export interface HeroPresentation {
@@ -161,7 +183,6 @@ export interface HeroPresentation {
 
 // Fetch the latest articles and prepare the homepage hero layout.
 export async function getHeroPresentation(): Promise<HeroPresentation> {
-
   const { articles, usingLiveData } = await getArticlesPresentation({
     limit: 7,
   });

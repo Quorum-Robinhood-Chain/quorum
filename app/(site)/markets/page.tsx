@@ -15,11 +15,6 @@ export const metadata: Metadata = {
 export default function MarketsPage() {
   return (
     <main>
-      {/* Financial disclaimer and site independence notice */}
-      <div className="disclaimer-strip">
-        Not financial advice. Quorum is independent and not affiliated with
-        Robinhood Markets, Inc.
-      </div>
 
       {/* Market statistics and latest market news */}
       <Reveal>

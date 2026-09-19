@@ -15,11 +15,6 @@ export const metadata: Metadata = {
 export default function EcosystemPage() {
   return (
     <main>
-      {/* Financial disclaimer and site independence notice */}
-      <div className="disclaimer-strip">
-        Not financial advice. Quorum is independent and not affiliated with
-        Robinhood Markets, Inc.
-      </div>
 
       {/* Ecosystem protocols and latest news */}
       <Reveal>
