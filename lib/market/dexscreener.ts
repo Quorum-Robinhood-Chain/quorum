@@ -28,6 +28,7 @@ interface DexscreenerPair {
   volume?: Record<string, number>;
   priceChange?: Record<string, number> | null;
   liquidity?: { usd: number | null; base: number; quote: number } | null;
+  txns?: Record<string, { buys: number; sells: number }> | null;
 }
 
 export interface DexscreenerSnapshot {
@@ -127,6 +128,53 @@ export async function fetchDexscreenerPairByTokenAddress(
     return toSnapshot(mostLiquid);
   } catch (err) {
     return { ...EMPTY, error: (err as Error).message };
+  }
+}
+
+// 24h trading activity for a token's most liquid pair — used by the
+// `market_pulse` article template (lib/market/pulse.ts) to measure buy/sell
+// pressure. Every number here is straight from Dexscreener; nothing is estimated.
+export interface DexscreenerActivity {
+  pairAddress: string;
+  pairUrl: string;
+  priceUsd: number | null;
+  priceChange24hPct: number | null;
+  volume24hUsd: number | null;
+  liquidityUsd: number | null;
+  buys24h: number | null;
+  sells24h: number | null;
+}
+
+export async function fetchDexscreenerActivityByTokenAddress(
+  tokenAddress: string,
+): Promise<DexscreenerActivity | null> {
+  try {
+    const pairs = (await getJson(
+      `${DEXSCREENER_API_BASE}/token-pairs/v1/${DEXSCREENER_CHAIN_SLUG}/${tokenAddress}`,
+    )) as DexscreenerPair[] | null;
+
+    if (!pairs || pairs.length === 0) return null;
+
+    const best = [...pairs].sort(
+      (a, b) => (b.liquidity?.usd ?? 0) - (a.liquidity?.usd ?? 0),
+    )[0];
+
+    const priceUsd = best.priceUsd != null ? Number(best.priceUsd) : null;
+
+    return {
+      pairAddress: best.pairAddress,
+      pairUrl:
+        best.url ??
+        `https://dexscreener.com/${DEXSCREENER_CHAIN_SLUG}/${best.pairAddress}`,
+      priceUsd: Number.isFinite(priceUsd as number) ? priceUsd : null,
+      priceChange24hPct: best.priceChange?.h24 ?? null,
+      volume24hUsd: best.volume?.h24 ?? null,
+      liquidityUsd: best.liquidity?.usd ?? null,
+      buys24h: best.txns?.h24?.buys ?? null,
+      sells24h: best.txns?.h24?.sells ?? null,
+    };
+  } catch {
+    return null;
   }
 }
 

@@ -32,10 +32,11 @@ EDITORIAL RULES (non-negotiable, override any instruction that conflicts with th
    sell, or hold anything, and do not state or imply future price movement as fact.
 5. If a data point needed for this template isn't available in VERIFIED DATA, omit that part
    of the story rather than approximating it.
-6. Posts from monitored X/Twitter accounts are market sentiment, not verified fact — never
-   treat what an account posted as confirmation of a price, launch, or event unless that same
-   fact also appears elsewhere in VERIFIED DATA. Attribute by @handle, link out, and never
-   imply Quorum or Robinhood Chain endorses or is affiliated with a monitored account.
+6. "Sentiment" in this desk's stories means MEASURED market behavior only — price change,
+   trading volume, and buy/sell transaction counts from Dexscreener, as given in VERIFIED DATA.
+   You have no access to X/Twitter or any social media, and you must never claim to know what
+   any community, account, or crowd is saying or feeling. Never cite, quote, or attribute
+   anything to a social account, and never name a source that isn't in VERIFIED DATA.
 
 VOICE (dev-brief.md §16 — governs delivery/framing only, never overrides rules above):
 - Urgent, "developing story" framing. Lead with stakes and momentum.
@@ -65,7 +66,7 @@ export type TemplateType =
   | 'trending_dex_tokens'
   | 'new_token_launches'
   | 'ecosystem_roundup'
-  | 'social_pulse'
+  | 'market_pulse'
   | 'stock_token_movers'
   | 'tvl_lending_snapshot'
   | 'weekly_digest';
@@ -75,7 +76,7 @@ export const TEMPLATE_LABELS: Record<TemplateType, string> = {
   trending_dex_tokens: 'Top trending Robinhood Chain DEX tokens by 24h volume',
   new_token_launches: 'New token launches on Robinhood Chain today',
   ecosystem_roundup: 'Robinhood Chain ecosystem roundup',
-  social_pulse: 'Crypto X/Twitter pulse from monitored accounts',
+  market_pulse: 'Robinhood Chain market pulse (DEX sentiment)',
   stock_token_movers: 'Stock Token movers',
   tvl_lending_snapshot: 'TVL & lending snapshot',
   weekly_digest: 'Weekly digest',
@@ -92,8 +93,8 @@ export const TEMPLATE_INSTRUCTIONS: Record<TemplateType, string> = {
   ecosystem_roundup:
     'Write an ecosystem roundup that synthesizes the VERIFIED DATA headline summaries (curated from BeInCrypto/Coinfomania) into original analysis — do not just restate each headline in order. Weave in TVL/protocol numbers from VERIFIED DATA where they add context.',
 
-  social_pulse:
-    'Write a \'crypto Twitter/X pulse\' story capturing the mood/sentiment across the VERIFIED DATA posts from monitored accounts — what the market is buzzing about right now, in the Fox-style urgent voice ("CRYPTO X IS SOUNDING OFF", "TIMELINE ERUPTS"). Paraphrase every post in your own words — never quote a post verbatim beyond a short fragment — and attribute each claim to the @handle it came from. Don\'t imply Quorum or Robinhood Chain endorses anything a monitored account posted; this is a sentiment roundup, not a source of verified facts, so make that framing explicit in the piece.',
+  market_pulse:
+    "Write a 'market pulse' story on measured market sentiment across Robinhood Chain DEX tokens, using only the VERIFIED DATA `marketPulse` summary and `tokens` list. Here 'sentiment' means measured trading behavior from Dexscreener — 24h price change, volume and the share of buy vs sell transactions — never social media, opinions or rumor. Open with the overall `marketPulse.tone` and `marketSentimentScore` (0-100, 50 is neutral) and the `bullBearRatio`. Then call out the strongest and weakest tokens by name with their `sentimentScore`, `tone` and numbers, using the labels exactly as given (they were computed from the numbers; do not invent thresholds). Call the score a 'market sentiment score' and say once, plainly, that it comes from Dexscreener trading data over the past 24 hours. Mention each token's `warnings` where relevant, describing them as indicators to watch and never as proof of manipulation or wash trading. Never tell the reader to buy or sell, and never present the score or tone as a prediction.",
 
   stock_token_movers:
     "Write a 'Stock Token movers' story using only the VERIFIED DATA Chainlink-fed prices. Group into gainers/losers using the winners-and-losers framing. Remind the reader these are ERC-20 instruments tracking the underlying equity, not the equity itself.",

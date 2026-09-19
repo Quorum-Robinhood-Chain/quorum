@@ -1,5 +1,4 @@
 import { ingestAllSources } from '@/lib/sources/ingest';
-import { ingestApifyPosts } from '@/lib/sources/apify-ingest';
 import { refreshMarketData } from '@/lib/market/refresh';
 import { syncStockTokens } from '@/lib/market/sync-stock-tokens';
 import { syncTrendingTokens } from '@/lib/market/sync-trending-tokens';
@@ -18,17 +17,19 @@ export const JOBS = [
 export type JobName = (typeof JOBS)[number];
 
 export function isJobName(value: unknown): value is JobName {
-  return typeof value === 'string' && (JOBS as readonly string[]).includes(value);
+  return (
+    typeof value === 'string' && (JOBS as readonly string[]).includes(value)
+  );
 }
 
 export async function runJob(job: JobName, forceTemplate?: TemplateType) {
   switch (job) {
     case 'ingest': {
-      // RSS sites and monitored X accounts (scraped via Apify) on the same 20-min
-      // cadence, both landing in raw_items — X posts are just tagged with a `social`
-      // Source (§ apify-ingest.ts).
-      const [rss, x] = await Promise.all([ingestAllSources(), ingestApifyPosts()]);
-      return { rss, x };
+      // RSS news feeds only (landing in raw_items). X/Twitter ingestion via Apify was
+      // removed — market sentiment now comes from Dexscreener trading data instead
+      // (see the `market_pulse` template in lib/llm/generate.ts).
+      const rss = await ingestAllSources();
+      return { rss };
     }
     case 'market':
       return refreshMarketData();
