@@ -1,6 +1,6 @@
 import { Clock, Newspaper, Timer, Bot, Lock } from 'lucide-react';
 import { getArticlesPresentation } from '@/lib/presenters/articles';
-import { CategoryThumb, CategoryIcon } from '@/lib/categoryVisual';
+import { CategoryThumb } from '@/lib/categoryVisual';
 
 export default async function NewsList() {
   // Fetch the 5 latest news articles.
@@ -21,16 +21,17 @@ export default async function NewsList() {
         <a className="list-story" href={article.href} key={article.id}>
           <CategoryThumb category={article.category} />
           <div>
-            <span className="cat">
-              <CategoryIcon category={article.category} />
-              {article.category}
-            </span>
+            <span className="cat">{article.category}</span>
             <h3>{article.headline}</h3>
             <p>{article.dek}</p>
             <span className="meta">
               {article.gated && (
                 <span className="meta-bit gated-badge">
-                  <Lock className="meta-icon" strokeWidth={2.2} aria-hidden="true" />
+                  <Lock
+                    className="meta-icon"
+                    strokeWidth={2.2}
+                    aria-hidden="true"
+                  />
                   Holder-only
                 </span>
               )}
