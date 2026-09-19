@@ -39,9 +39,6 @@ export default function TriggerJobsButton() {
           text: `Skipped — not enough verified data (${data.result.template})`,
         });
       } else if (typeof data.result?.skipped === 'string') {
-        // syncTrendingTokens()'s skip shape: { skipped: '<reason string>' } —
-        // different job, different result shape; show its actual reason
-        // instead of assuming the generate job's fields exist.
         setFeedback({ ok: false, text: `Skipped — ${data.result.skipped}` });
       } else {
         setFeedback({ ok: true, text: 'Job finished' });

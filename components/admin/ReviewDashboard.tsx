@@ -4,9 +4,6 @@ import { useState } from 'react';
 import ReviewQueueTable from './ReviewQueueTable';
 import type { ReviewArticle } from '@/types';
 
-// Owns the review-queue state so the summary cards and the table always
-// reflect the same data — any mutation in the table (status change, reject,
-// edit) instantly recomputes the cards below, no page reload needed.
 export default function ReviewDashboard({
   initialArticles,
   usingLiveData,

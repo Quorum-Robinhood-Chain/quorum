@@ -42,12 +42,6 @@ export function estimateReadTime(text: string): string {
   return `${Math.max(1, Math.round(words / 40))} min read`;
 }
 
-// Split a stored article/guide body into clean paragraphs for rendering. Bodies are
-// meant to use a blank line between paragraphs, but this stays defensive: it also
-// accepts single-newline breaks, collapses stray whitespace inside a paragraph, and
-// — if a body ever arrives as one unbroken block with no line breaks at all (e.g. a
-// model output that skipped the blank-line instruction) — falls back to grouping
-// sentences so it still reads as multiple paragraphs instead of one wall of text.
 export function paragraphs(text: string): string[] {
   const normalized = text.replace(/\r\n/g, '\n').trim();
   if (!normalized) return [];

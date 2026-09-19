@@ -34,14 +34,8 @@ export async function runJob(job: JobName, forceTemplate?: TemplateType) {
     case 'market':
       return refreshMarketData();
     case 'stock-tokens-sync':
-      // Full catalog sync + top-10-by-volume ranking — see lib/market/sync-stock-tokens.ts
-      // for why this runs on its own (slower) schedule instead of every 5-minute tick.
       return syncStockTokens();
     case 'trending-tokens-sync':
-      // Auto-discover whatever's actually trading on Robinhood Chain right now via
-      // Dexscreener — see lib/market/sync-trending-tokens.ts. No key required;
-      // returns `skipped` (not a failure) if Dexscreener has no candidates for
-      // this chain on a given run.
       return syncTrendingTokens();
     case 'generate':
       return generateArticle(forceTemplate);

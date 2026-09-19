@@ -5,11 +5,7 @@ import { getArticleById } from '@/lib/presenters/articles';
 import { paragraphs } from '@/lib/format';
 import GatedArticleBody from '@/components/GatedArticleBody';
 
-// Cache each article page for 30s. The actual gate check (wallet + $QUORUM
-// balance) never relies on this cache — it's re-verified server-side on every
-// call to /api/articles/[id] (force-dynamic, see that route). Worst case here
-// is the public/gated badge on this page lags the real 1-hour cutoff by up to
-// 30s, which is cosmetic, not a security boundary.
+// Cache the page for 30s. Gate checks are always verified server-side.
 export const revalidate = 30;
 
 export async function generateMetadata({
@@ -17,7 +13,7 @@ export async function generateMetadata({
 }: {
   params: { id: string };
 }): Promise<Metadata> {
-  // Fetch article data for dynamic page metadata.
+  // Fetch article data for page metadata.
   const article = await getArticleById(params.id);
   if (!article) return { title: 'Article not found — Quorum' };
 
@@ -32,13 +28,13 @@ export default async function ArticlePage({
 }: {
   params: { id: string };
 }) {
-  // Fetch the requested article by ID.
+  // Fetch the requested article.
   const article = await getArticleById(params.id);
   if (!article) notFound();
 
   return (
     <main>
-      {/* Financial disclaimer and site independence notice */}
+      {/* Financial disclaimer and independence notice */}
       <div className="disclaimer-strip">
         Not financial advice. Quorum is independent and not affiliated with
         Robinhood Markets, Inc.
@@ -58,9 +54,7 @@ export default async function ArticlePage({
           <p className="mt-3 text-base text-gray-600">{article.dek}</p>
         )}
 
-        {/* Tokens mentioned in this article — link out to a trusted source:
-            TradingView for Stock Tokens, Dexscreener (by contract address)
-            otherwise. See lib/market/external-links.ts. */}
+        {/* Related tokens with external market links */}
         {article.relatedTokens.length > 0 && (
           <div className="mt-3 flex flex-wrap items-center gap-2">
             <span className="text-xs text-gray-400">Tokens in this story:</span>
@@ -142,8 +136,7 @@ export default async function ArticlePage({
           )}
         </div>
 
-        {/* Article body — withheld server-side while gated (see getArticleById);
-            GatedArticleBody re-fetches it client-side once a wallet clears the check. */}
+        {/* Show gated or full article content */}
         {article.gated ? (
           <GatedArticleBody
             articleId={article.id}

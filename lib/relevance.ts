@@ -1,6 +1,3 @@
-// Keyword relevance gate for ingested items (§8.2). An embedding pass can be added
-// later as a second gate without changing this interface.
-
 const KEYWORDS = [
   'robinhood chain',
   'rh chain',

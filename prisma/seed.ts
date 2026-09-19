@@ -1,12 +1,4 @@
 import { PrismaClient } from '@prisma/client';
-
-// Seeds the reference rows the pipeline needs: news sources, tracked tokens, and the
-// admin editor. Safe to re-run — everything is an upsert.
-//
-// X/Twitter sources are NOT seeded here on purpose — `ingestApifyPosts()`
-// (lib/sources/apify-ingest.ts) upserts a Source row per handle straight from
-// APIFY_MONITORED_ACCOUNTS on every ingest run, so the account list is just an env var,
-// not a migration/reseed.
 const prisma = new PrismaClient();
 
 const SOURCES = [
@@ -25,24 +17,6 @@ const SOURCES = [
   },
 ];
 
-// Memecoins stay in their own category so they can be labelled separately (§17).
-// `coingeckoId` is the CoinGecko coin id (not the ticker) and is what makes a token
-// priced out of the box. Leave it null for anything CoinGecko doesn't list — those need
-// TOKEN_POOL_MAP (on-chain pool) instead.
-//
-// Stock Tokens are NOT seeded here on purpose (unlike defi/meme below). They come from
-// Robinhood's own live catalog, not a hardcoded guess — run
-// `npx tsx scripts/run-job.ts stock-tokens-sync` after seeding (or wait for its daily
-// cron run) to populate them. See
-// lib/market/sync-stock-tokens.ts for why: Robinhood has 190+ active Stock Tokens as of
-// Sept 2026 and adds more regularly, so a static list here would go stale immediately.
-// contractAddress/chainSlug below are the real deployment for each token —
-// mostly NOT on Robinhood Chain (these are well-established multi-chain
-// tokens; wBTC/wETH/AAVE/LINK's liquid markets happen to be on Solana here,
-// for instance). chainSlug records which Dexscreener chain each address
-// actually belongs to, so the external link goes to a real, resolvable pair
-// instead of guessing "robinhood" for everything — see
-// lib/market/external-links.ts. Supplied by the site owner, 2026-09-18.
 const TOKENS = [
   {
     symbol: 'UNI',

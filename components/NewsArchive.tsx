@@ -37,8 +37,6 @@ export default function NewsArchive({
     [active, articles],
   );
 
-  // Jump back to page 1 whenever the category filter changes so we never
-  // land on an out-of-range page for the new, shorter list.
   useEffect(() => {
     setPage(1);
   }, [active]);

@@ -6,9 +6,6 @@ import Sidebar from '@/components/Sidebar';
 import CtaBanner from '@/components/CtaBanner';
 import Reveal from '@/components/motion/Reveal';
 
-// Articles regenerate every ~30 min and market snapshots every ~5 min (see
-// cron.yml), so a fresh DB hit on every single request is wasted work.
-// Serve a cached page for up to 60s, then revalidate in the background.
 export const revalidate = 60;
 
 export default function Home() {

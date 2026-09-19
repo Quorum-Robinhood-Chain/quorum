@@ -20,17 +20,6 @@ import {
 
 export type RelatedToken = { symbol: string; url: string };
 
-// Articles have no DB column linking them to a token (see prisma/schema.prisma) —
-// so "which token is this about" is inferred by scanning the text for a known
-// symbol, e.g. "AAPL" or "USDG". Cheap, no migration needed, good enough for a
-// "check this token" link. Matched against `tokens`, the app's live Token
-// table (via getTokensPresentation — same live-DB-with-fallback pattern the
-// /tokens page already uses), so newly added/removed tokens are picked up
-// automatically without touching this file. The link itself points off-site
-// (TradingView for Stock Tokens, Dexscreener via contractAddress otherwise)
-// — see lib/market/external-links.ts. contractAddress is required here (not
-// just symbol/category) so that link doesn't fall back to a name search that
-// can resolve to a different token with the same symbol.
 function matchRelatedTokens(
   text: string,
   tokens: Pick<
@@ -172,30 +161,21 @@ export interface HeroPresentation {
 
 // Fetch the latest articles and prepare the homepage hero layout.
 export async function getHeroPresentation(): Promise<HeroPresentation> {
-  // Ambil 8 artikel terbaru:
-  // 1 artikel untuk Hero utama
-  // 7 artikel untuk "Next on the network"
+
   const { articles, usingLiveData } = await getArticlesPresentation({
     limit: 7,
   });
 
-  // Jika database tidak memiliki artikel live,
-  // gunakan artikel fallback.
   if (!usingLiveData || articles.length === 0) {
     return {
       hero: heroArticle,
 
-      // Maksimal 7 artikel di sisi kanan.
-      // Nomornya nanti otomatis menjadi 02 sampai 08
-      // di component Hero.tsx.
       side: heroSideArticles.slice(0, 7),
 
       usingLiveData: false,
     };
   }
 
-  // Artikel pertama menjadi berita utama.
-  // Sisanya menjadi berita di sisi kanan.
   const [hero, ...side] = articles;
 
   return {
@@ -225,15 +205,9 @@ export interface ArticleDetail {
   minutesUntilUnlock: number;
   requiredBalance: number;
 
-  /** Tokens mentioned in the headline/dek/body, each with a trusted off-site
-   *  link (TradingView for Stock Tokens, Dexscreener by contract address
-   *  otherwise). Inferred from
-   *  text — see matchRelatedTokens — not a stored relation. */
   relatedTokens: RelatedToken[];
 }
 
-// Fetch a published article by ID and return its presentation data.
-// The body is withheld while the article is still inside the gate window.
 export async function getArticleById(
   id: string,
 ): Promise<ArticleDetail | null> {

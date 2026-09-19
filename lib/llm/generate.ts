@@ -9,17 +9,10 @@ import {
 import { fetchNewPairsSince } from '@/lib/market/chain-rpc';
 import { computeMarketPulse, xSearchUrl } from '@/lib/market/pulse';
 
-// Enforce a market_pulse floor: out of every 4 consecutive articles, at least 1
-// must be a `market_pulse`. Topic choice stays random; we only look at the last
-// PULSE_QUOTA_WINDOW articles, and if none of them was a `market_pulse`, this
-// cycle is forced to be one.
-const PULSE_QUOTA_WINDOW = 3; // look back this many articles (current one makes 4)
+const PULSE_QUOTA_WINDOW = 3;
 
-// How many tokens get a Dexscreener + "search on X" entry in a market_pulse source list.
 const SOURCE_LINK_LIMIT = 5;
 
-// Rotated every generation cycle (every 30 minutes by default — see vercel.json).
-// `stock_token_movers` intentionally left out — no more stock-token stories.
 const GENERATION_TEMPLATES: TemplateType[] = [
   'trending_dex_tokens',
   'new_token_launches',
@@ -44,17 +37,6 @@ interface SnapshotRow {
   source: string;
 }
 
-// Fetch the latest snapshot for each scope and metric combination.
-//
-// DISTINCT ON (scope, metric), not a row-capped findMany — a `take: 200`
-// cap counts total rows scanned across every scope under this prefix, not
-// rows per scope. With 190+ Stock Tokens alone writing price + volume_24h
-// every 5-minute tick, `token:` easily produces 200+ rows in a single
-// cycle, which can push a `trending` token's snapshot out of the window
-// before the LLM ever sees it — the same failure mode as
-// lib/presenters/tokens.ts's getTokensPresentation(). DISTINCT ON always
-// returns the freshest row per (scope, metric), regardless of how many
-// scopes exist under the prefix.
 async function latestSnapshots(scopePrefix: string): Promise<SnapshotRow[]> {
   const escaped = scopePrefix.replace(/[%_]/g, (c) => `\\${c}`);
 
@@ -79,10 +61,6 @@ async function gatherData(template: TemplateType): Promise<GatheredData> {
     case 'trending_dex_tokens': {
       const allSnapshots = await latestSnapshots('token:');
 
-      // The scope alone (`token:SYMBOL`) doesn't say which category a token
-      // belongs to — look categories up by symbol so stock_token/meme rows
-      // can be filtered out entirely (no more stories touching those) and
-      // so "trending" (Dexscreener-discovered) tokens can be called out.
       const allSymbols = [
         ...new Set(allSnapshots.map((s) => s.scope.replace(/^token:/, ''))),
       ];
@@ -186,10 +164,6 @@ async function gatherData(template: TemplateType): Promise<GatheredData> {
       // counts) — tone labels are computed in lib/market/pulse.ts, not by the LLM.
       const pulse = await computeMarketPulse();
 
-      // Source list shown under the article (names[i] links to urls[i]): the
-      // Dexscreener pair for each of the top tokens, then a plain "search on X" link
-      // per token. The X links are only shortcuts for readers — no X data is fetched
-      // or used — and are labelled that way.
       const linked = pulse.tokens.slice(0, SOURCE_LINK_LIMIT);
 
       return {
@@ -330,11 +304,6 @@ export type GenerateResult =
       flagged: boolean;
     };
 
-// Cheap, deterministic quality signals checked *after* generation. None of
-// these block publishing — the site is auto-publish by design, so the story
-// is already live for gated ($QUORUM holders) or public readers by the time
-// this runs. They only set `flagged`, which surfaces the draft at the top of
-// the admin queue for a fast look, with an emergency unpublish one click away.
 function autoFlagReason(
   generated: GeneratedArticle,
   data: GatheredData,
