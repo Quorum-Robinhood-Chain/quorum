@@ -8,16 +8,21 @@ export type TickerItem = {
   isUp: boolean;
 };
 
-export type ArticleCategory =
-  | "Markets"
-  | "Ecosystem"
-  | "Tokens"
-  | "Stock Tokens"
-  | "Security"
-  | "Learn";
+// Single source of truth for article categories — the array is reused for runtime
+// validation, the union for types. "Governance/Staking" deliberately absent (§2/§11).
+export const ARTICLE_CATEGORIES = [
+  'Markets',
+  'Ecosystem',
+  'Tokens',
+  'Stock Tokens',
+  'Security',
+  'Learn',
+] as const;
+
+export type ArticleCategory = (typeof ARTICLE_CATEGORIES)[number];
 
 export type SourceAttribution = {
-  name: "BeInCrypto" | "Coinfomania" | "Quorum";
+  name: 'BeInCrypto' | 'Coinfomania' | 'Quorum';
   url: string;
 };
 
@@ -32,6 +37,7 @@ export type Article = {
   automated: boolean;
   source: SourceAttribution;
   href: string;
+  gated?: boolean;
 };
 
 export type TrendingItem = {
@@ -43,11 +49,10 @@ export type TrendingItem = {
 export type NetworkStat = {
   label: string;
   value: string;
-  trend?: "up" | "down";
+  trend?: 'up' | 'down';
 };
 
-// Memecoins kept as a separate category, not mixed with Stock/DeFi.
-export type TokenCategory = "stock_token" | "defi" | "meme";
+export type TokenCategory = 'stock_token' | 'defi' | 'meme' | 'trending';
 
 export type TokenRow = {
   id: string;
@@ -55,6 +60,8 @@ export type TokenRow = {
   name: string;
   dex: string;
   category: TokenCategory;
+  contractAddress: string | null;
+  chainSlug: string | null;
   price: string;
   change24h: string;
   isUp: boolean;
@@ -65,13 +72,15 @@ export type TokenRow = {
 export type LearnGuide = {
   id: string;
   title: string;
+  // Short label for compact spaces (e.g. the footer menu). Falls back to `title`.
+  shortTitle?: string;
   dek: string;
-  readTime: string;
+  body: string;
   href: string;
 };
 
 // Protocol integrations/TVL — no governance token to vote/stake.
-export type ProtocolCategory = "dex" | "lending" | "oracle";
+export type ProtocolCategory = 'dex' | 'lending' | 'oracle';
 
 export type ProtocolRow = {
   id: string;
@@ -84,8 +93,7 @@ export type ProtocolRow = {
   url: string;
 };
 
-// Fields used by the /admin review queue, plus audit trail.
-export type ArticleStatus = "draft" | "reviewed" | "published";
+export type ArticleStatus = 'published' | 'unpublished';
 
 export type ReviewArticle = {
   id: string;
@@ -95,6 +103,8 @@ export type ReviewArticle = {
   status: ArticleStatus;
   automated: boolean;
   edited?: boolean;
+  flagged?: boolean;
+  flagReason?: string | null;
   sources: string[];
   generationInputs: string[];
   generatedAt: string;

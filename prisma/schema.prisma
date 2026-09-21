@@ -1,0 +1,162 @@
+// Quorum — Prisma schema
+// Works with any Postgres provider (Supabase, Neon, RDS, local). Set DATABASE_URL in .env.
+// Mirrors the data model in dev-brief.md §10, with a few operational fields added
+// (status timestamps, audit fields) needed by the review queue and scheduler.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  // Neon/Supabase pooled connections drop long-lived prepared statements;
+  // if you're on a pooler (pgbouncer), also set DIRECT_URL for migrations.
+  directUrl = env("DIRECT_URL")
+}
+
+// ── Editorial / news sources (§7.1) ────────────────────────────────────────
+model Source {
+  id               String    @id @default(cuid())
+  name             String    @unique // "BeInCrypto" | "Coinfomania" | "X: @handle"
+  url              String
+  type             SourceType @default(news)
+  feedUrl          String?   // RSS/Atom URL if one exists — confirm before enabling
+  handle           String?   // X/Twitter handle (no "@"), for type: social sources only
+  pollingIntervalMinutes Int @default(20)
+  robotsCheckedAt  DateTime?
+  tosNotes         String?
+  enabled          Boolean   @default(true)
+  createdAt        DateTime  @default(now())
+  rawItems         RawItem[]
+
+  @@index([type, handle])
+}
+
+enum SourceType {
+  news
+  api
+  social // monitored X/Twitter accounts (§ social_pulse template) — raw material for
+         // MiMo, never shown to readers as a standalone "tweet" item
+}
+
+// ── Raw ingested items before/after relevance filtering (§7.1, §8.2) ──────
+model RawItem {
+  id            String   @id @default(cuid())
+  sourceId      String
+  source        Source   @relation(fields: [sourceId], references: [id])
+  title         String
+  excerpt       String?  @db.Text
+  url           String   @unique
+  dedupeKey     String   @unique // hash(title+url) — prevents re-ingesting the same story
+  publishedAt   DateTime?
+  fetchedAt     DateTime @default(now())
+  isRelevant    Boolean  @default(false) // passed the "Robinhood Chain" keyword/embedding filter
+  usedInArticle Boolean  @default(false)
+
+  @@index([isRelevant, usedInArticle])
+}
+
+// ── Market / on-chain data snapshots (§7.2, §8.2) ──────────────────────────
+model MarketSnapshot {
+  id        String   @id @default(cuid())
+  scope     String   // "chain" | "token:ARC" | "protocol:morpho" | "stock_token:AAPLx"
+  metric    Metric
+  value     Float
+  unit      String?  // "usd" | "pct" | "count"
+  source    String   // "DefiLlama" | "Chainlink" | "Morpho API" | "Chain RPC" ...
+  timestamp DateTime @default(now())
+
+  @@index([scope, metric, timestamp])
+}
+
+enum Metric {
+  tvl
+  volume_24h
+  price
+  price_change_24h
+  apy
+  active_protocols
+  new_tokens_24h
+  gas_fee_avg
+  dex_volume_rank
+  tx_count
+}
+
+// ── Tokens tracked on Robinhood Chain (§10) ────────────────────────────────
+model Token {
+  id              String        @id @default(cuid())
+  symbol          String
+  name            String
+  contractAddress String?
+  // Chain this contractAddress actually lives on, as a Dexscreener chain
+  // slug (e.g. "robinhood", "ethereum", "solana", "base", "arbitrum",
+  // "arc"). NULL means "robinhood" (the default for every token that
+  // predates this column — trending/meme entries sourced from Robinhood
+  // Chain discovery, defi entries that were never given a bridged/off-chain
+  // address). Required because the same ticker can have a real, differently
+  // priced contract on several chains — see lib/market/external-links.ts.
+  chainSlug       String?
+  dex             String?
+  category        TokenCategory
+  // CoinGecko coin id (not the ticker). Lets a listed token get price + 24h change
+  // with no on-chain config — the only source that supplies price_change_24h.
+  coingeckoId     String?
+  isTracked       Boolean       @default(true)
+  createdAt       DateTime      @default(now())
+
+  @@unique([symbol, contractAddress])
+}
+
+enum TokenCategory {
+  stock_token
+  meme
+  defi
+  other
+  trending // auto-discovered via Dexscreener — see lib/market/sync-trending-tokens.ts
+}
+
+// ── Generated / curated articles (§10, §8.6) ───────────────────────────────
+// Auto-publish model: an automated draft goes live the moment it's generated
+// (no human-in-the-loop gate before publish). Quality control is a fast-follow
+// safety net instead of a front gate: `flagged` marks a draft for admin
+// attention without pulling it, `status: unpublished` is the emergency
+// takedown an admin can apply (and reverse) at any time.
+model Article {
+  id               String        @id @default(cuid())
+  templateType     String        // one of the §6.2 rotation templates
+  category         String        // "Markets" | "Ecosystem" | "Tokens" | "Stock Tokens" | "Learn" | "Security"
+  headline         String
+  dek              String?       @db.Text
+  body             String        @db.Text
+  automated        Boolean       @default(true)
+  edited           Boolean       @default(false)
+  sourceNames      String[]      // e.g. ["DefiLlama", "Arcus subgraph"] or ["BeInCrypto"]
+  sourceUrls       String[]
+  generationInputs String[]      // audit trail: which snippets/snapshots this was built from (§12)
+  status           ArticleStatus @default(published)
+  flagged          Boolean       @default(false) // auto- or admin-flagged for quality review; stays live
+  flagReason       String?
+  reviewerId       String?       // last admin to flag/unflag/unpublish/republish/edit this article
+  reviewer         Editor?       @relation(fields: [reviewerId], references: [id])
+  generatedAt      DateTime      @default(now())
+  publishedAt      DateTime?     // set at creation for automated articles; drives the 1-hour token gate
+  unpublishedAt    DateTime?
+
+  @@index([status, generatedAt])
+  @@index([category, publishedAt])
+}
+
+enum ArticleStatus {
+  published
+  unpublished
+}
+
+// ── Editors (§10) ───────────────────────────────────────────────────────────
+model Editor {
+  id       String    @id @default(cuid())
+  name     String
+  username String    @unique
+  role     String    @default("editor")
+  articles Article[]
+}

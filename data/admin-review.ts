@@ -8,7 +8,7 @@ export const reviewQueue: ReviewArticle[] = [
     headline: "MONEY IS MOVING: Robinhood Chain volume spikes 8% overnight",
     body:
       "24h volume across Arcus, Uniswap, 1inch and Lighter climbed past $9.2M, pushing Robinhood Chain to third among L2s by DEX activity. Morpho's USDG lending pool held near 6.9% APY as liquidity kept arriving.",
-    status: "draft",
+    status: "published",
     automated: true,
     sources: ["DefiLlama", "Arcus subgraph", "Uniswap subgraph"],
     generationInputs: [
@@ -16,6 +16,10 @@ export const reviewQueue: ReviewArticle[] = [
       "arcus-subgraph:top-pairs snapshot 14:00 UTC",
     ],
     generatedAt: "6 minutes ago",
+    // Live example of the auto-publish safety net: still public and gated
+    // normally, just flagged so an admin glances at it first.
+    flagged: true,
+    flagReason: "low data coverage — fewer than 2 verified inputs",
   },
   {
     id: "draft-2",
@@ -23,7 +27,7 @@ export const reviewQueue: ReviewArticle[] = [
     headline: "JUST LAUNCHED: Three new tokens hit Robinhood Chain this hour",
     body:
       "Three new contracts deployed with initial liquidity added on Uniswap and 1inch in the last hour. Early volume is concentrated in one pair; the other two have yet to see meaningful trading.",
-    status: "draft",
+    status: "published",
     automated: true,
     sources: ["Chain RPC (factory events)"],
     generationInputs: [
@@ -31,6 +35,8 @@ export const reviewQueue: ReviewArticle[] = [
       "dexscreener:liquidity-added confirmations x3",
     ],
     generatedAt: "22 minutes ago",
+    flagged: true,
+    flagReason: "unusually short body",
   },
   {
     id: "draft-3",
@@ -38,7 +44,7 @@ export const reviewQueue: ReviewArticle[] = [
     headline: "Arcus deepens liquidity incentives to compete for volume",
     body:
       "The dYdX team's DEX is offering fee rebates to liquidity providers as new protocols race for early market share on Robinhood Chain. Original summary — not republished from the source.",
-    status: "reviewed",
+    status: "published",
     automated: false,
     sources: ["BeInCrypto"],
     generationInputs: ["beincrypto:headline+excerpt, fetched 09:14 UTC", "original summary, not republished"],
@@ -64,11 +70,13 @@ export const reviewQueue: ReviewArticle[] = [
     headline: "WALL STREET, ON-CHAIN: How tokenized stocks are trading right now",
     body:
       "Chainlink-fed prices for tokenized equities swung both ways today, with tech-linked Stock Tokens leading gains while the broader basket stayed roughly flat.",
-    status: "published",
+    status: "unpublished",
     automated: true,
     sources: ["Chainlink price feeds"],
     generationInputs: ["chainlink:stock-token feeds, 12 symbols, 13:00 UTC"],
     generatedAt: "3 hours ago",
+    // Demo of the emergency takedown path — still queryable/auditable, just
+    // pulled from public view.
     reviewerId: "a.chen",
   },
 ];

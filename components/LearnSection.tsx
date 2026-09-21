@@ -1,16 +1,16 @@
-import { learnGuides } from "@/data/learn";
+import { learnGuides } from '@/data/learn';
+import { CategoryThumb } from '@/lib/categoryVisual';
 
 // Learn page: explainer content, not a live-data template.
 export default function LearnSection() {
   return (
     <section className="mx-auto max-w-site px-6 pb-10" id="learn">
-      <div className="flex items-baseline justify-between border-b-2 border-ink pb-[18px] pt-9 mb-6">
+      {/* Learn section header */}
+      <div className="border-b-2 border-ink pb-[18px] pt-9 mb-6">
         <h2 className="font-display text-2xl font-extrabold text-ink">Learn</h2>
-        <a className="text-[13.5px] font-semibold text-olive hover:underline" href="#">
-          All guides
-        </a>
       </div>
 
+      {/* Educational guides */}
       <div className="grid gap-4 sm:grid-cols-2">
         {learnGuides.map((guide) => (
           <a
@@ -18,6 +18,10 @@ export default function LearnSection() {
             href={guide.href}
             className="group flex flex-col gap-2 rounded-card border border-line p-[18px] transition-colors hover:border-gray-400"
           >
+            <CategoryThumb
+              category="Learn"
+              className="mb-1 flex aspect-video w-full items-center justify-center overflow-hidden rounded-card bg-[#00152B]"
+            />
             <span className="text-[11.5px] font-bold uppercase tracking-wide text-olive">
               Explainer
             </span>
@@ -26,7 +30,7 @@ export default function LearnSection() {
             </h3>
             <p className="text-sm leading-relaxed text-gray-600">{guide.dek}</p>
             <span className="mt-auto pt-2 text-xs text-gray-400">
-              Quorum Education Desk · {guide.readTime}
+              Quorum Education Desk
             </span>
           </a>
         ))}

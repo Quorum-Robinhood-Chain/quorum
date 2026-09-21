@@ -1,18 +1,27 @@
-import { marketCards } from "@/data/articles";
+import { getArticlesPresentation } from '@/lib/presenters/articles';
+import { CategoryThumb } from '@/lib/categoryVisual';
 
-export default function MarketsSection() {
+export default async function MarketsSection() {
+  // Fetch the 3 latest market articles.
+  const { articles: marketCards } = await getArticlesPresentation({
+    limit: 3,
+  });
+
   return (
     <section className="wrap" id="markets">
+      {/* Markets section header */}
       <div className="section-head">
         <h2>Markets</h2>
         <a className="view-all" href="/markets">
           All market data
         </a>
       </div>
+
+      {/* Market article cards */}
       <div className="news-grid">
         {marketCards.map((article) => (
-          <article className="card" key={article.id}>
-            <div className="thumb" aria-hidden="true" />
+          <a className="card" href={article.href} key={article.id}>
+            <CategoryThumb category={article.category} />
             <span className="cat">{article.category}</span>
             <h3>{article.headline}</h3>
             <p className="excerpt">{article.dek}</p>
@@ -27,7 +36,7 @@ export default function MarketsSection() {
                 </>
               )}
             </div>
-          </article>
+          </a>
         ))}
       </div>
     </section>

@@ -1,33 +1,33 @@
-import type { Metadata } from "next";
-import { Big_Shoulders_Display, Public_Sans } from "next/font/google";
-import "../../globals.css";
+import type { Metadata } from 'next';
+import '../../globals.css';
+import { fontVariables } from '../../fonts';
 
-// Separate root layout — keeps /admin free of the public site's header/footer.
-const bigShoulders = Big_Shoulders_Display({
-  subsets: ["latin"],
-  weight: ["600", "700", "800", "900"],
-  variable: "--font-big-shoulders",
-  display: "swap",
-});
-
-const publicSans = Public_Sans({
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
-  style: ["normal", "italic"],
-  variable: "--font-public-sans",
-  display: "swap",
-});
-
+// Separate root layout for admin pages without the public header and footer.
 export const metadata: Metadata = {
-  title: "Quorum Admin",
-  description: "Editorial review queue for Quorum's automated content pipeline.",
+  title: 'Quorum Admin',
+  icons: {
+    icon: [
+      { url: '/favicon.ico', sizes: 'any' },
+      { url: '/icon.png', type: 'image/png', sizes: '192x192' },
+    ],
+    apple: '/apple-icon.png',
+  },
+  description:
+    "Editorial review queue for Quorum's automated content pipeline.",
   robots: { index: false, follow: false },
 };
 
-export default function AdminLayout({ children }: { children: React.ReactNode }) {
+export default function AdminLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  // Apply shared fonts and admin-specific page styling.
   return (
-    <html lang="en" className={`${bigShoulders.variable} ${publicSans.variable}`}>
-      <body className="min-h-screen bg-panel font-body text-ink antialiased">{children}</body>
+    <html lang="en" className={fontVariables}>
+      <body className="min-h-screen bg-panel font-body text-ink antialiased">
+        {children}
+      </body>
     </html>
   );
 }

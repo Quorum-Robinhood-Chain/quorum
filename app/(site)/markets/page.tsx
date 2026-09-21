@@ -1,20 +1,25 @@
-import type { Metadata } from "next";
-import MarketsOverview from "@/components/MarketsOverview";
+import type { Metadata } from 'next';
+import MarketsOverview from '@/components/MarketsOverview';
+import Reveal from '@/components/motion/Reveal';
+
+// Market snapshots refresh every ~5 min (see cron.yml) — no need to hit
+// the DB on every single request.
+export const revalidate = 120;
 
 export const metadata: Metadata = {
-  title: "Markets — Quorum",
+  title: 'Markets — Quorum',
   description:
-    "Live TVL, DEX volume, and Stock Token activity across the Robinhood Chain ecosystem, pulled from real market and on-chain data.",
+    'Live TVL, DEX volume, and Stock Token activity across the Robinhood Chain ecosystem, pulled from real market and on-chain data.',
 };
 
 export default function MarketsPage() {
   return (
     <main>
-      <div className="disclaimer-strip">
-        Not financial advice. Quorum is independent and not affiliated with Robinhood Markets,
-        Inc.
-      </div>
-      <MarketsOverview />
+
+      {/* Market statistics and latest market news */}
+      <Reveal>
+        <MarketsOverview />
+      </Reveal>
     </main>
   );
 }

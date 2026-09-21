@@ -1,20 +1,15 @@
+import ConnectWalletButton from '@/components/ConnectWalletButton';
+import { newsCategories } from '@/data/news';
+import { learnGuides } from '@/data/learn';
+
 export default function SiteFooter() {
   return (
     <footer className="site">
+      {/* Footer brand and site description */}
       <div className="footer-grid">
         <div className="footer-col footer-brand">
           <a className="logo" href="/">
-            <span className="mark">
-              <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                <path
-                  d="M4 12L12 4L20 12L12 20L4 12Z"
-                  stroke="#0A0A0A"
-                  strokeWidth="2"
-                  strokeLinejoin="round"
-                />
-                <circle cx="12" cy="12" r="2.4" fill="#0A0A0A" />
-              </svg>
-            </span>
+            <img src="/logo.png" alt="" className="logo-img" />
             Quorum <span className="chain">Robinhood Chain</span>
           </a>
           <p>
@@ -22,75 +17,48 @@ export default function SiteFooter() {
             Not affiliated with, and not operated by, Robinhood Markets, Inc.
           </p>
         </div>
+
+        {/* Quorum menu: jump to the top of the homepage, or open the wallet modal */}
         <div className="footer-col">
-          <h4>Network</h4>
+          <h4>Quorum</h4>
           <ul>
             <li>
-              <a href="#">Block explorer</a>
+              <a href="/">Hot News</a>
             </li>
             <li>
-              <a href="#">Chain status</a>
-            </li>
-            <li>
-              <a href="#">Protocol directory</a>
-            </li>
-            <li>
-              <a href="#">API status</a>
+              <a href="/news">All News</a>
             </li>
           </ul>
         </div>
+
+        {/* News menu: one link per news theme, deep-linking into /news pre-filtered */}
         <div className="footer-col">
-          <h4>Ecosystem</h4>
+          <h4>News</h4>
           <ul>
-            <li>
-              <a href="/ecosystem">Protocols & TVL</a>
-            </li>
-            <li>
-              <a href="/tokens">Trending tokens</a>
-            </li>
-            <li>
-              <a href="/tokens">Stock Tokens</a>
-            </li>
-            <li>
-              <a href="/tokens">DEX volume rankings</a>
-            </li>
+            {newsCategories.map((category) => (
+              <li key={category}>
+                <a href={`/news?category=${encodeURIComponent(category)}`}>
+                  {category}
+                </a>
+              </li>
+            ))}
           </ul>
         </div>
+
+        {/* Learn menu */}
         <div className="footer-col">
-          <h4>Editorial</h4>
+          <h4>Learn</h4>
           <ul>
-            <li>
-              <a href="#">About Quorum</a>
-            </li>
-            <li>
-              <a href="#">Editorial guidelines</a>
-            </li>
-            <li>
-              <a href="#">Corrections</a>
-            </li>
-            <li>
-              <a href="#">Contact</a>
-            </li>
-          </ul>
-        </div>
-        <div className="footer-col">
-          <h4>Legal</h4>
-          <ul>
-            <li>
-              <a href="#">Not financial advice</a>
-            </li>
-            <li>
-              <a href="#">Sources & attribution</a>
-            </li>
-            <li>
-              <a href="#">Privacy</a>
-            </li>
-            <li>
-              <a href="#">Terms</a>
-            </li>
+            {learnGuides.slice(0, 4).map((guide) => (
+              <li key={guide.id}>
+                <a href={guide.href}>{guide.shortTitle ?? guide.title}</a>
+              </li>
+            ))}
           </ul>
         </div>
       </div>
+
+      {/* Copyright and social links */}
       <div className="footer-bottom">
         <span>
           © 2026 Quorum. Not financial advice. Independent coverage of Robinhood

@@ -1,43 +1,47 @@
-import type { Metadata } from "next";
-import { Big_Shoulders_Display, Public_Sans } from "next/font/google";
-import "../globals.css";
-import TickerBar from "@/components/TickerBar";
-import SiteHeader from "@/components/SiteHeader";
-import SiteFooter from "@/components/SiteFooter";
+import type { Metadata } from 'next';
+import '../globals.css';
+import { fontVariables } from '../fonts';
+import TickerBar from '@/components/TickerBar';
+import SiteHeader from '@/components/SiteHeader';
+import SiteFooter from '@/components/SiteFooter';
+import { WalletProvider } from '@/lib/wallet/WalletProvider';
 
-const bigShoulders = Big_Shoulders_Display({
-  subsets: ["latin"],
-  weight: ["600", "700", "800", "900"],
-  variable: "--font-big-shoulders",
-  display: "swap",
-});
-
-const publicSans = Public_Sans({
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
-  style: ["normal", "italic"],
-  variable: "--font-public-sans",
-  display: "swap",
-});
+export const revalidate = 60;
 
 export const metadata: Metadata = {
-  title: "Quorum — News & market data for Robinhood Chain",
+  title: 'Quorum — News & market data for Robinhood Chain',
+  icons: {
+    icon: [
+      { url: '/favicon.ico', sizes: 'any' },
+      { url: '/icon.png', type: 'image/png', sizes: '192x192' },
+    ],
+    apple: '/apple-icon.png',
+  },
   description:
-    "Quorum covers the Robinhood Chain ecosystem: DEX activity, Stock Tokens, TVL, and ecosystem news, refreshed automatically from live market data.",
+    'Quorum covers the Robinhood Chain ecosystem: DEX activity, Stock Tokens, TVL, and ecosystem news, refreshed automatically from live market data.',
 };
 
-export default function RootLayout({
+export default function SiteLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className={`${bigShoulders.variable} ${publicSans.variable}`}>
+    <html lang="en" className={fontVariables}>
       <body>
-        <TickerBar />
-        <SiteHeader />
-        {children}
-        <SiteFooter />
+        <WalletProvider>
+          {/* Global market ticker */}
+          <TickerBar />
+
+          {/* Main site navigation */}
+          <SiteHeader />
+
+          {/* Page content */}
+          {children}
+
+          {/* Global site footer */}
+          <SiteFooter />
+        </WalletProvider>
       </body>
     </html>
   );

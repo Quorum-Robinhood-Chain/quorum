@@ -1,0 +1,172 @@
+name: Quorum scheduled jobs
+
+# GitHub Actions replaces Vercel Cron because Vercel Hobby has a 10s limit.
+#
+# ingest, market → call Vercel API endpoints.
+# generate, weekly-digest → run directly for longer LLM jobs.
+# stock-tokens-sync, trending-tokens-sync → run directly for longer data jobs.
+#
+# Required repo secrets:
+# SITE_URL             → Vercel URL, used by ingest/market
+# CRON_TRIGGER_SECRET  → cron secret, used by ingest/market
+# DATABASE_URL         → pooled database URL
+# DIRECT_URL           → direct database URL
+# MIMO_API_KEY         → MiMo API key
+# MIMO_BASE_URL        → optional MiMo base URL
+# MIMO_MODEL           → optional MiMo model
+# RHC_RPC_URL          → RPC URL for new token lookups
+#
+# trending-tokens-sync uses Dexscreener's public API and needs no API key.
+#
+# GitHub schedules are best-effort and may be delayed.
+# Scheduled workflows can also be disabled after 60 days without activity.
+#
+# Private repositories have 2,000 free Actions minutes/month.
+# Keep npm caching enabled to reduce install time.
+
+on:
+  schedule:
+    - cron: '*/20 * * * *' # ingest — RSS news feeds
+    - cron: '*/5 * * * *'  # market — data refresh
+    - cron: '0 6 * * *'    # stock-tokens-sync — daily catalog refresh
+    - cron: '0 */6 * * *'  # trending-tokens-sync — every 6 hours
+    - cron: '*/30 * * * *' # generate — article generation
+    - cron: '0 9 * * 5'    # weekly-digest — Fridays 09:00 UTC
+  workflow_dispatch:
+    inputs:
+      job:
+        description: 'Job to run (ingest, market, stock-tokens-sync, trending-tokens-sync, generate, weekly-digest)'
+        required: true
+        default: 'ingest'
+        type: choice
+        options:
+          - ingest
+          - market
+          - stock-tokens-sync
+          - trending-tokens-sync
+          - generate
+          - weekly-digest
+
+jobs:
+  resolve:
+    runs-on: ubuntu-latest
+    outputs:
+      job: ${{ steps.job.outputs.name }}
+    steps:
+      - name: Resolve which job this run is for
+        id: job
+        run: |
+          case "${{ github.event.schedule }}" in
+            '*/20 * * * *') echo "name=ingest" >> "$GITHUB_OUTPUT" ;;
+            '*/5 * * * *')  echo "name=market" >> "$GITHUB_OUTPUT" ;;
+            '0 6 * * *')    echo "name=stock-tokens-sync" >> "$GITHUB_OUTPUT" ;;
+            '0 */6 * * *')  echo "name=trending-tokens-sync" >> "$GITHUB_OUTPUT" ;;
+            '*/30 * * * *') echo "name=generate" >> "$GITHUB_OUTPUT" ;;
+            '0 9 * * 5')    echo "name=weekly-digest" >> "$GITHUB_OUTPUT" ;;
+            *)              echo "name=${{ github.event.inputs.job }}" >> "$GITHUB_OUTPUT" ;;
+          esac
+
+  # Fast jobs — run through Vercel.
+  trigger-http:
+    needs: resolve
+    if: contains(fromJSON('["ingest", "market"]'), needs.resolve.outputs.job)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Call /api/cron/${{ needs.resolve.outputs.job }}
+        run: |
+          if [ -z "${{ secrets.SITE_URL }}" ] || [ -z "${{ secrets.CRON_TRIGGER_SECRET }}" ]; then
+            echo "::error::Missing SITE_URL or CRON_TRIGGER_SECRET repo secret."
+            exit 1
+          fi
+
+          http_code=$(curl -s -o response.json -w "%{http_code}" \
+            -X GET "${{ secrets.SITE_URL }}/api/cron/${{ needs.resolve.outputs.job }}" \
+            -H "x-cron-secret: ${{ secrets.CRON_TRIGGER_SECRET }}")
+
+          echo "HTTP $http_code"
+          cat response.json
+
+          if [ "$http_code" -ge 400 ]; then
+            echo "::error::Cron endpoint returned HTTP $http_code"
+            exit 1
+          fi
+
+  # Slow jobs — run directly to avoid Vercel's 10s limit.
+  run-direct:
+    needs: resolve
+    if: contains(fromJSON('["generate", "weekly-digest"]'), needs.resolve.outputs.job)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      DIRECT_URL: ${{ secrets.DIRECT_URL }}
+      MIMO_API_KEY: ${{ secrets.MIMO_API_KEY }}
+      MIMO_BASE_URL: ${{ secrets.MIMO_BASE_URL }}
+      MIMO_MODEL: ${{ secrets.MIMO_MODEL }}
+      RHC_RPC_URL: ${{ secrets.RHC_RPC_URL }}
+    steps:
+      - name: Check required secrets
+        run: |
+          missing=()
+          [ -z "$DATABASE_URL" ] && missing+=(DATABASE_URL)
+          [ -z "$DIRECT_URL" ] && missing+=(DIRECT_URL)
+          [ -z "$MIMO_API_KEY" ] && missing+=(MIMO_API_KEY)
+          [ -z "$RHC_RPC_URL" ] && missing+=(RHC_RPC_URL)
+          if [ ${#missing[@]} -gt 0 ]; then
+            echo "::error::Missing repo secret(s): ${missing[*]}"
+            exit 1
+          fi
+
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      # Only shared dependencies are needed.
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate Prisma client
+        run: npx prisma generate
+
+      - name: Run ${{ needs.resolve.outputs.job }}
+        run: npx tsx scripts/run-job.ts ${{ needs.resolve.outputs.job }}
+
+  # Light jobs — run directly without MiMo or RPC secrets.
+  run-direct-light:
+    needs: resolve
+    if: contains(fromJSON('["stock-tokens-sync", "trending-tokens-sync"]'), needs.resolve.outputs.job)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      DIRECT_URL: ${{ secrets.DIRECT_URL }}
+      DEXSCREENER_MIN_LIQUIDITY_USD: ${{ secrets.DEXSCREENER_MIN_LIQUIDITY_USD }}
+    steps:
+      - name: Check required secrets
+        run: |
+          missing=()
+          [ -z "$DATABASE_URL" ] && missing+=(DATABASE_URL)
+          [ -z "$DIRECT_URL" ] && missing+=(DIRECT_URL)
+          if [ ${#missing[@]} -gt 0 ]; then
+            echo "::error::Missing repo secret(s): ${missing[*]}"
+            exit 1
+          fi
+
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate Prisma client
+        run: npx prisma generate
+
+      - name: Run ${{ needs.resolve.outputs.job }}
+        run: npx tsx scripts/run-job.ts ${{ needs.resolve.outputs.job }}
