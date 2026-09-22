@@ -8,6 +8,8 @@
 
 *Curated reporting. Live market data. Written every 30 minutes, published instantly.*
 
+**Contract Address ($QUORUM):** `0xd78e5420d683ec8f2bfb04eed2cf06326f6ec732`
+
 [![Framework](https://img.shields.io/badge/Framework-Next.js%2014%20(App%20Router)-000000?style=flat-square&logo=nextdotjs&logoColor=white&labelColor=0D0D0A)](#-tech-stack)
 [![Network](https://img.shields.io/badge/Network-Robinhood%20Chain%20·%204663-1A9E4B?style=flat-square&labelColor=0D0D0A)](#-how-it-works)
 [![Language](https://img.shields.io/badge/Language-TypeScript-3178C6?style=flat-square&logo=typescript&logoColor=white&labelColor=0D0D0A)](#-tech-stack)
@@ -107,6 +109,7 @@ There is no approval step in the path — the safety net is a flag on the row, n
 - **Window, not a flag on the row.** Gating is derived from `publishedAt` at request time (`lib/gating.ts`, default 60 minutes via `GATE_WINDOW_MINUTES`) — nothing needs to run to "release" an article, it just ages out.
 - **The body never reaches the client while gated.** `getArticleById()` returns `body: ''` for a gated article; the real text is only returned by `getGatedArticleBody()`, called server-side after re-checking both age and on-chain balance.
 - **Balance check is a plain ERC-20 read.** `lib/wallet/quorumToken.ts` calls `balanceOf` on `QUORUM_TOKEN_ADDRESS`. Since $QUORUM isn't deployed yet, the gate reports `gate_not_configured` rather than failing open or closed silently.
+- **Contract address.** $QUORUM's on-chain contract address is `0xd78e5420d683ec8f2bfb04eed2cf06326f6ec732`. This is the address `QUORUM_TOKEN_ADDRESS` should point to for `balanceOf` reads.
 - **Threshold is config, not code.** `QUORUM_MIN_BALANCE` (default `50000`) and `QUORUM_TOKEN_DECIMALS` are env vars, changeable without a redeploy of the logic.
 
 ---
