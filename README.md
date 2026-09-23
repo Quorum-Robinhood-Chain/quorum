@@ -118,12 +118,15 @@ There is no approval step in the path — the safety net is a flag on the row, n
 
 ```
 app/
-  (site)/            public pages — home, markets, tokens, ecosystem, news, learn
+  (site)/            public pages — home, markets, tokens, ecosystem, news, learn, agents
   (admin)/admin/     moderation queue — flag/unpublish/edit, own root layout, no site chrome
   api/
     cron/[job]/      scheduled entry point (GitHub Actions — .github/workflows/cron.yml)
     admin/           login/logout, moderation actions, manual job trigger
     health/          config + connectivity diagnostics
+    catalog/         x402 machine-readable endpoint catalog (free)
+    v1/              x402-paid agent API — news, sentiment, flags, pulse, snapshot
+  .well-known/x402/  x402 discovery document (free)
 lib/
   env.ts             every env read goes through here (lazy, CRLF-sanitised)
   gating.ts          1-hour gate window (publishedAt age check)
@@ -133,12 +136,34 @@ lib/
   sources/           RSS ingestion (ingest.ts) + market pulse (market/pulse.ts)
   wallet/            EIP-6963 connect (client) + $QUORUM balanceOf check (server)
   presenters/        DB → view models, with sample-data fallbacks
+  x402/              agent-facing paid API: paywall, pricing, usage, live data adapters
 components/          site chrome, ticker, hero, token/market/news sections, wallet modal
 prisma/              schema, migrations, seed script
 data/                sample content used only when nothing is live yet
 scripts/run-job.ts   CLI entry for running any scheduled job locally
 public/              logo, favicon, category imagery
 ```
+
+### 🤖 `/agents` — the x402 agent API
+
+Autonomous agents pay per call (USDG on Robinhood Chain, chain 4663) for
+the same verified news/market pipeline that writes the site — no API
+key, no subscription. See `lib/x402/*` and `app/api/v1/*`; the section
+itself is at `/agents`.
+
+- Stays in **dev preview** (`X402_MODE` unset or `dev-preview`) until a
+  facilitator is wired into `verifyPayment()` in `lib/x402/paywall.ts` —
+  it never silently opens and never silently charges.
+- `/api/v1/stats` is free and shows a **seeded demo counter** (39 calls,
+  labelled `mode: "demo"`) until the first real payment settles, at
+  which point it flips to live figures automatically — see the comment
+  block at the top of `lib/x402/usage.ts`.
+- Usage is stored in Postgres (`X402Call` / `x402_calls`, via Prisma —
+  run `npx prisma migrate deploy` to create the table). Paid calls are
+  rate-limited per payer wallet (`X402_RATE_LIMIT_PER_MIN`, default 30/min).
+- Data adapters (`lib/x402/data.ts`) read live from `MarketSnapshot`,
+  `Token` and `Article`, and reuse `lib/market/pulse.ts`'s scoring so an
+  agent and a human reader see identical thresholds.
 
 ---
 

@@ -152,6 +152,25 @@ enum ArticleStatus {
   unpublished
 }
 
+// ── x402 agent API usage (/agents) ─────────────────────────────────────────
+// One row per settled paid call. `demo` marks the seeded rows shipped with
+// the prototype — see lib/x402/usage.ts's "honesty contract" comment: while
+// every row is demo=true, /api/v1/stats reports mode "demo"; the moment one
+// real row lands, live figures take over automatically.
+model X402Call {
+  id        String   @id @default(cuid())
+  agent     String   @db.VarChar(42)
+  endpoint  String
+  amount    Decimal  @db.Decimal(18, 6)
+  txHash    String?  @unique
+  demo      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([agent, createdAt])
+  @@index([createdAt])
+  @@map("x402_calls")
+}
+
 // ── Editors (§10) ───────────────────────────────────────────────────────────
 model Editor {
   id       String    @id @default(cuid())
