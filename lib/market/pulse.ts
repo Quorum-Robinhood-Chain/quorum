@@ -10,15 +10,18 @@ const PULSE_CATEGORIES = ['trending', 'defi'] as const;
 const MAX_TOKENS = 10;
 
 // Below this pair liquidity, price moves can be exaggerated by a single trade.
-const THIN_LIQUIDITY_USD = 50_000;
+// Exported so lib/x402/data.ts can flag the exact same threshold instead of
+// re-declaring it — "published thresholds, not a black box" only holds if
+// there is one copy of the number.
+export const THIN_LIQUIDITY_USD = 50_000;
 
 // 24h volume more than this many times the pool's liquidity is unusual churn. It can
 // be organic hype OR self-trading (wash trading), so it is only ever an INDICATOR.
-const HIGH_VOLUME_TO_LIQUIDITY = 10;
+export const HIGH_VOLUME_TO_LIQUIDITY = 10;
 
 // Buy or sell share this lopsided (with enough trades) is flagged as one-sided flow.
-const ONE_SIDED_SHARE = 0.85;
-const ONE_SIDED_MIN_TRADES = 50;
+export const ONE_SIDED_SHARE = 0.85;
+export const ONE_SIDED_MIN_TRADES = 50;
 
 export function xSearchUrl(symbol: string): string {
   return `https://x.com/search?q=${encodeURIComponent('$' + symbol)}&f=live`;
@@ -40,6 +43,10 @@ export interface PulseToken {
   sells24h: number | null;
   buySharePct: number | null;
   thinLiquidity: boolean;
+  // Raw -2..+2 score before the 0-100 rescale below — same formula as
+  // scoreToken(), kept per-token for callers (e.g. the x402 pulse endpoint)
+  // that need to average it directly.
+  score: number;
   // 0-100 market sentiment score from price change + buy/sell share (50 = neutral).
   sentimentScore: number;
   tone: Tone;
@@ -75,7 +82,12 @@ const round = (n: number, digits = 1) => {
 };
 
 // Score in [-2, 2]: +1/-1 for price move beyond +/-5%, +1/-1 for buy share beyond 55%/45%.
-function scoreToken(change: number | null, buyShare: number | null): number {
+// Exported so lib/x402/data.ts's sentiment endpoint scores tokens the same way
+// this module does, instead of a second copy of the formula drifting over time.
+export function scoreToken(
+  change: number | null,
+  buyShare: number | null,
+): number {
   let score = 0;
   if (change != null) {
     if (change >= 5) score += 1;
@@ -209,6 +221,7 @@ export async function computeMarketPulse(): Promise<MarketPulse> {
       sells24h: a.sells24h,
       buySharePct: buyShare != null ? round(buyShare * 100) : null,
       thinLiquidity: liquidity < THIN_LIQUIDITY_USD,
+      score,
       sentimentScore: sentimentScore(a.priceChange24hPct, buyShare),
       tone: scoreToTone(score),
       warnings,

@@ -21,6 +21,7 @@ const NAV_LINKS = [
   { href: '/tokens', label: 'Tokens' },
   { href: '/news', label: 'News' },
   { href: '/learn', label: 'Learn' },
+  { href: '/agents', label: 'Agents' },
 ];
 
 export default function SiteHeader() {
